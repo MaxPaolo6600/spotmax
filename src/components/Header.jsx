@@ -200,6 +200,14 @@ export default function Header() {
                                     <img src="./src/assets/almoco-foguete.png" className="h-6 ms-2" />
                                     <h3 className="ms-4">Publicar Obra</h3>
                                 </motion.button>
+                                <motion.button
+                                    onClick={() => navigate("/Personalizar")}
+                                    className="text-white bg-[#212121] flex border-2 border-[#274E5D] rounded-2xl p-2 justify-center"
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 1.3 }}
+                                >
+                                    <h3 className="text-[#274E5D]">Personalizar Layout</h3>
+                                </motion.button>
                             </nav>
                             {user && (
                                 <motion.button
