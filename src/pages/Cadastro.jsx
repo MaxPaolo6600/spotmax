@@ -102,7 +102,7 @@ export default function Cadastro() {
                     </motion.div>
                     <motion.div variants={item}>
                         <label className="block text-sm text-white mb-1">
-                            Nome do usuário
+                            Nome de usuário
                         </label>
                         <input
                             name="nome"
