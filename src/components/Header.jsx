@@ -6,18 +6,48 @@ import { supabase } from "../supabaseClient";
 export default function Header() {
     const [menuAberto, setMenuAberto] = useState(false);
     const [user, setUser] = useState(null);
+    const [fotoPerfil, setFotoPerfil] = useState(null);
 
     const navigate = useNavigate();
 
     useEffect(() => {
-        supabase.auth.getUser().then(({ data }) => {
-            setUser(data.user);
-        });
+        async function getUserAndProfile() {
+            const { data: { user } } = await supabase.auth.getUser();
+            setUser(user);
+
+            if (user) {
+                const { data, error } = await supabase
+                    .from("perfil")
+                    .select("foto")
+                    .eq("id", user.id)
+                    .single();
+
+                if (!error && data?.foto) {
+                    setFotoPerfil(data.foto);
+                }
+            }
+        }
+
+        getUserAndProfile();
+
         const { data: listener } = supabase.auth.onAuthStateChange(
-            (_event, session) => {
+            async (_event, session) => {
                 setUser(session?.user || null);
+
+                if (session?.user) {
+                    const { data } = await supabase
+                        .from("perfil")
+                        .select("foto")
+                        .eq("id", session.user.id)
+                        .single();
+
+                    setFotoPerfil(data?.foto || null);
+                } else {
+                    setFotoPerfil(null);
+                }
             }
         );
+
         return () => {
             listener.subscription.unsubscribe();
         };
@@ -45,7 +75,7 @@ export default function Header() {
                 <div className="w-full">
                     <motion.button
                         onClick={() => setMenuAberto(prev => !prev)}
-                        className="border-2 p-2 border-[#274E5D] rounded-2xl text-white text-xl"
+                        className="border-2 p-1 border-[#274E5D] rounded-2xl text-white text-xl"
                         aria-label="Abrir menu"
                         animate={{
                             rotate: menuAberto ? 90 : 0,
@@ -60,7 +90,7 @@ export default function Header() {
                                 <motion.img
                                     key="close"
                                     src="./src/assets/cross.png"
-                                    className="h-6 m-1"
+                                    className="h-8 w-8 m-1"
                                     initial={{ opacity: 0, rotate: -90 }}
                                     animate={{ opacity: 1, rotate: 0 }}
                                     exit={{ opacity: 0, rotate: 90 }}
@@ -69,7 +99,7 @@ export default function Header() {
                                 <motion.img
                                     key="menu"
                                     src="./src/assets/menu-hamburguer (1).png"
-                                    className="h-6 m-1"
+                                    className="h-8 w-8 m-1"
                                     initial={{ opacity: 0, rotate: 90 }}
                                     animate={{ opacity: 1, rotate: 0 }}
                                     exit={{ opacity: 0, rotate: -90 }}
@@ -110,13 +140,13 @@ export default function Header() {
                         <>
                             <motion.button
                                 onClick={() => navigate("/perfil")}
-                                className="border-2 p-2 border-[#274E5D] rounded-full text-white text-xl me-3"
+                                className="border-2 p-1 border-[#274E5D] rounded-full text-white text-xl me-3"
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 1.3 }}
                             >
                                 <motion.img
-                                    src="./src/assets/do-utilizador (1).png"
-                                    className="h-6 m-1"
+                                    src={fotoPerfil || "./src/assets/do-utilizador (1).png"}
+                                    className="h-8 w-8 rounded-full object-cover"
                                 />
                             </motion.button>
                         </>

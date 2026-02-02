@@ -57,7 +57,7 @@ export default function App() {
             style={{ backgroundColor: bgColor, color: textColor }}
         >
             <Header />
-            <main className="pt-16 p-6 text-white max-w-6xl mx-auto">
+            <main className="pt-16 p-6 max-w-6xl mx-auto">
                 <div className="flex justify-between items-center">
                     <div className="relative w-full max-w-md mt-4">
                         <img
