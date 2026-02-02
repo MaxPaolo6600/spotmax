@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import Header from "../components/Header";
+import { useTheme } from "../context/ThemeContext";
 
 export default function MinhasObras() {
     const [obras, setObras] = useState([]);
     const [loading, setLoading] = useState(true);
+const { bgColor, textColor } = useTheme();
 
     useEffect(() => {
         fetchObras();
@@ -48,16 +50,22 @@ export default function MinhasObras() {
     }
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#262B2D] text-white flex items-center justify-center">
-                Carregando...
+            <div>
+                <Header />
+                <div className="min-h-screen bg-[#262B2D] text-white flex items-center justify-center">
+                    Carregando...
+                </div>
             </div>
         );
     }
     return (
-        <div>
+        <div
+            className="min-h-screen transition-colors duration-300"
+            style={{ backgroundColor: bgColor, color: textColor }}
+        >
             <Header />
-            <main className="pt-20 p-6 bg-[#262B2D] min-h-screen text-white">
-                <h1 className="text-3xl font-bold mb-8 text-center">
+            <main className="pt-16 p-6 max-w-6xl mx-auto">
+                <h1 className="text-3xl font-bold mb-8 mt-8 text-center">
                     Minhas Obras
                 </h1>
                 {obras.length === 0 ? (

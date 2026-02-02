@@ -140,13 +140,13 @@ export default function Header() {
                         <>
                             <motion.button
                                 onClick={() => navigate("/perfil")}
-                                className="border-2 p-1 border-[#274E5D] rounded-full text-white text-xl me-3"
+                                className="border-2 p-1 border-[#274E5D] rounded-full text-white text-xl"
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 1.3 }}
                             >
                                 <motion.img
                                     src={fotoPerfil || "./src/assets/do-utilizador (1).png"}
-                                    className="h-8 w-8 rounded-full object-cover"
+                                    className="h-10 w-10 rounded-full"
                                 />
                             </motion.button>
                         </>

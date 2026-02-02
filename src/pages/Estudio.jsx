@@ -16,7 +16,17 @@ export default function Estudio() {
         imagePreview: null,
     });
 
-    const [tracks, setTracks] = useState([""]);
+    const [tracks, setTracks] = useState([
+        { name: "", file: null }
+    ]);
+
+    const [toast, setToast] = useState({
+        show: false,
+        message: "",
+        type: "success", // success | error
+    });
+
+    const [isLoading, setIsLoading] = useState(false);
 
     const releaseConfig = {
         Álbum: { label: "álbum", namePlaceholder: "Nome do álbum" },
@@ -43,76 +53,102 @@ export default function Estudio() {
 
     function handleChange(e) {
         const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        setFormData(prev => ({ ...prev, [name]: value }));
     }
 
     function handleImageChange(e) {
         const file = e.target.files[0];
         if (!file) return;
 
-        setFormData((prev) => ({
+        setFormData(prev => ({
             ...prev,
             image: file,
             imagePreview: URL.createObjectURL(file),
         }));
     }
 
-    function handleTrackChange(index, value) {
+    function handleTrackNameChange(index, value) {
         const updated = [...tracks];
-        updated[index] = value;
+        updated[index].name = value;
+        setTracks(updated);
+    }
+
+    function handleTrackFileChange(index, file) {
+        const updated = [...tracks];
+        updated[index].file = file;
         setTracks(updated);
     }
 
     function addTrack() {
-        setTracks((prev) => [...prev, ""]);
+        setTracks(prev => [...prev, { name: "", file: null }]);
     }
 
     function removeTrack(index) {
-        setTracks((prev) => prev.filter((_, i) => i !== index));
+        setTracks(prev => prev.filter((_, i) => i !== index));
+    }
+
+    async function uploadMusic(file, userId) {
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${userId}/${crypto.randomUUID()}.${fileExt}`;
+
+        const { error } = await supabase.storage
+            .from("musicas")
+            .upload(fileName, file);
+
+        if (error) throw error;
+
+        const { data } = supabase.storage
+            .from("musicas")
+            .getPublicUrl(fileName);
+
+        return data.publicUrl;
     }
 
     async function uploadImage(file) {
         const fileExt = file.name.split(".").pop();
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
 
-        const { error: uploadError } = await supabase.storage
+        const { error } = await supabase.storage
             .from("albums")
             .upload(fileName, file);
 
-        if (uploadError) throw uploadError;
+        if (error) throw error;
 
-        const { data, error: urlError } = supabase.storage
+        const { data } = supabase.storage
             .from("albums")
             .getPublicUrl(fileName);
 
-        if (urlError) throw urlError;
-
         return data.publicUrl;
+    }
+    function showToast(message, type = "success") {
+        setToast({ show: true, message, type });
+
+        setTimeout(() => {
+            setToast(prev => ({ ...prev, show: false }));
+        }, 3500);
     }
 
     async function handleSubmit() {
-        try {
-            const {
-                data: { user },
-                error: userError,
-            } = await supabase.auth.getUser();
+        setIsLoading(true);
 
+        try {
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
             if (userError || !user) throw new Error("Usuário não autenticado");
 
             let imageUrl = null;
-            if (formData.image) imageUrl = await uploadImage(formData.image);
+            if (formData.image) {
+                imageUrl = await uploadImage(formData.image);
+            }
 
             const { data: criacaoData, error: criacaoError } = await supabase
                 .from("criacao")
-                .insert([
-                    {
-                        user_id: user.id,
-                        tipo: releaseConfig[selectedType].label,
-                        genre: formData.genre,
-                        release_date: formData.releaseDate,
-                        image_url: imageUrl,
-                    },
-                ])
+                .insert([{
+                    user_id: user.id,
+                    tipo: releaseConfig[selectedType].label,
+                    genre: formData.genre,
+                    release_date: formData.releaseDate,
+                    image_url: imageUrl,
+                }])
                 .select()
                 .single();
 
@@ -122,41 +158,55 @@ export default function Estudio() {
 
             if (selectedType === "Álbum" || selectedType === "Ep") {
                 if (formData.name) {
-                    const { error: albumError } = await supabase.from("albums").insert([
-                        {
-                            criacao_id: criacaoId,
-                            nome_album: formData.name,
-                        },
-                    ]);
-                    if (albumError) throw albumError;
+                    const { error } = await supabase.from("albums").insert([{
+                        criacao_id: criacaoId,
+                        nome_album: formData.name,
+                    }]);
+                    if (error) throw error;
                 }
 
-                const musicInserts = tracks
-                    .filter((track) => track.trim() !== "")
-                    .map((track) => ({
+                const musicInserts = [];
+
+                for (const track of tracks) {
+                    if (!track.name || !track.file) continue;
+
+                    const audioUrl = await uploadMusic(track.file, user.id);
+
+                    musicInserts.push({
                         criacao_id: criacaoId,
-                        nome_musica: track,
-                    }));
+                        nome_musica: track.name,
+                        audio_url: audioUrl,
+                    });
+                }
 
                 if (musicInserts.length > 0) {
-                    const { error: musicError } = await supabase
+                    const { error } = await supabase
                         .from("musicas")
                         .insert(musicInserts);
-                    if (musicError) throw musicError;
+                    if (error) throw error;
                 }
+
             } else if (selectedType === "Música Single") {
-                if (formData.name.trim() !== "") {
-                    const { error: musicError } = await supabase.from("musicas").insert([
-                        {
-                            criacao_id: criacaoId,
-                            nome_musica: formData.name.trim(),
-                        },
-                    ]);
-                    if (musicError) throw musicError;
+                const track = tracks[0];
+
+                if (!track?.file || !formData.name.trim()) {
+                    throw new Error("Selecione o arquivo MP3 da música");
                 }
+
+                const audioUrl = await uploadMusic(track.file, user.id);
+
+                const { error } = await supabase.from("musicas").insert([{
+                    criacao_id: criacaoId,
+                    nome_musica: formData.name.trim(),
+                    audio_url: audioUrl,
+                }]);
+
+                if (error) throw error;
             }
 
-            alert("Criação salva com sucesso!");
+            showToast("Criação salva com sucesso!", "success");
+
+
             setFormData({
                 name: "",
                 genre: "",
@@ -164,10 +214,16 @@ export default function Estudio() {
                 image: null,
                 imagePreview: null,
             });
-            setTracks([""]);
+
+            setTracks([{ name: "", file: null }]);
+
         } catch (error) {
             console.error(error);
-            alert("Erro ao salvar criação: " + error.message);
+            showToast("Erro ao salvar criação: " + error.message, "error");
+
+        }
+        finally {
+            setIsLoading(false);
         }
     }
 
@@ -182,13 +238,14 @@ export default function Estudio() {
                 >
                     Crie seu lançamento
                 </motion.h1>
+
                 <motion.div
                     className="flex flex-wrap justify-center gap-4 mb-12"
                     variants={containerVariants}
                     initial="hidden"
                     animate="visible"
                 >
-                    {["Álbum", "Ep", "Música Single", "Podcast"].map((item) => (
+                    {["Álbum", "Ep", "Música Single", "Podcast"].map(item => (
                         <motion.button
                             key={item}
                             onClick={() => setSelectedType(item)}
@@ -209,6 +266,7 @@ export default function Estudio() {
                         </motion.button>
                     ))}
                 </motion.div>
+
                 <motion.div
                     className="grid grid-cols-1 md:grid-cols-2 gap-10"
                     variants={containerVariants}
@@ -225,9 +283,10 @@ export default function Estudio() {
                             value={formData.name}
                             onChange={handleChange}
                             placeholder={releaseConfig[selectedType].namePlaceholder}
-                            className="w-full bg-[#212121] placeholder-white rounded-xl px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#137FA8] transition"
+                            className="w-full bg-[#212121] placeholder-white rounded-xl px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#137FA8]"
                         />
                     </motion.div>
+
                     <motion.div variants={itemVariants}>
                         <label className="block mb-2 text-xl font-medium">Estilo da obra</label>
                         <div className="relative">
@@ -235,11 +294,9 @@ export default function Estudio() {
                                 name="genre"
                                 value={formData.genre}
                                 onChange={handleChange}
-                                className="w-full bg-[#212121] rounded-xl px-4 py-3 appearance-none shadow-inner focus:outline-none focus:ring-2 focus:ring-[#137FA8] transition"
+                                className="w-full bg-[#212121] rounded-xl px-4 py-3 appearance-none shadow-inner focus:outline-none focus:ring-2 focus:ring-[#137FA8]"
                             >
-                                <option value="" hidden >
-                                    Gêneros musicais
-                                </option>
+                                <option value="" hidden>Gêneros musicais</option>
                                 <option value="hiphop">Hip Hop</option>
                                 <option value="pop">Pop</option>
                                 <option value="rock">Rock</option>
@@ -252,6 +309,7 @@ export default function Estudio() {
                             />
                         </div>
                     </motion.div>
+
                     <AnimatePresence>
                         {(selectedType === "Álbum" || selectedType === "Ep") && (
                             <motion.div
@@ -263,39 +321,46 @@ export default function Estudio() {
                                 <label className="block mb-4 text-xl font-medium">
                                     Faixas do <span className="text-[#137FA8]">{releaseConfig[selectedType].label}</span>
                                 </label>
+
                                 <div className="space-y-4">
                                     {tracks.map((track, index) => (
                                         <motion.div
                                             key={index}
-                                            className="flex items-center justify-between p-2 bg-[#1E1E1E] rounded-xl shadow-inner"
-                                            initial={{ opacity: 0, y: 20 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, x: -50, opacity: 0 }}
+                                            className="flex flex-col gap-2 p-3 bg-[#1E1E1E] rounded-xl shadow-inner"
                                             layout
                                         >
                                             <input
                                                 type="text"
-                                                value={track}
-                                                onChange={(e) => handleTrackChange(index, e.target.value)}
-                                                placeholder={`Música ${index + 1}`}
-                                                className="flex-1 bg-transparent text-white placeholder-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#137FA8]"
+                                                value={track.name}
+                                                onChange={e => handleTrackNameChange(index, e.target.value)}
+                                                placeholder={`Nome da música ${index + 1}`}
+                                                className="bg-transparent text-white placeholder-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#137FA8]"
                                             />
+
+                                            <input
+                                                type="file"
+                                                accept="audio/mp3,audio/mpeg"
+                                                onChange={e => handleTrackFileChange(index, e.target.files[0])}
+                                                className="text-sm text-gray-300"
+                                            />
+
                                             {tracks.length > 1 && (
                                                 <button
                                                     type="button"
                                                     onClick={() => removeTrack(index)}
-                                                    className="ml-4 text-red-500 hover:text-red-400 font-bold text-xl transition"
+                                                    className="self-end text-red-500 hover:text-red-400 font-bold text-sm"
                                                 >
-                                                    ✕
+                                                    Remover
                                                 </button>
                                             )}
                                         </motion.div>
                                     ))}
                                 </div>
+
                                 <button
                                     type="button"
                                     onClick={addTrack}
-                                    className="mt-4 px-5 py-2 bg-[#137FA8] rounded-xl hover:bg-[#274E5D] transition shadow-md"
+                                    className="mt-4 px-5 py-2 bg-[#137FA8] rounded-xl hover:bg-[#274E5D]"
                                 >
                                     + Adicionar música
                                 </button>
@@ -307,20 +372,22 @@ export default function Estudio() {
                         <label className="block mb-2 text-xl font-medium">
                             Imagem do <span className="text-[#137FA8]">{releaseConfig[selectedType].label}</span>
                         </label>
-                        <label className="w-56 h-56 flex items-center justify-center bg-[#212121] rounded-2xl cursor-pointer shadow-lg overflow-hidden hover:scale-105 transition-transform">
+
+                        <label className="w-56 h-56 flex items-center justify-center bg-[#212121] rounded-2xl cursor-pointer shadow-lg overflow-hidden">
                             <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
                             {formData.imagePreview ? (
-                                <img src={formData.imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                                <img src={formData.imagePreview} className="w-full h-full object-cover" />
                             ) : (
                                 <div className="flex flex-col items-center">
                                     <div className="w-16 h-16 bg-[#137FA8] rounded-2xl flex items-center justify-center mb-3">
-                                        <img src={Lupa} alt="" className="w-8 h-8" />
+                                        <img src={Lupa} className="w-8 h-8" />
                                     </div>
                                     <span className="text-gray-400">Clique para adicionar</span>
                                 </div>
                             )}
                         </label>
                     </motion.div>
+
                     <motion.div variants={itemVariants}>
                         <label className="block mb-2 text-xl font-medium">
                             Data de lançamento do <span className="text-[#137FA8]">{releaseConfig[selectedType].label}</span>
@@ -330,19 +397,60 @@ export default function Estudio() {
                             name="releaseDate"
                             value={formData.releaseDate}
                             onChange={handleChange}
-                            className="w-full bg-[#212121] rounded-xl px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#137FA8] transition"
+                            className="w-full bg-[#212121] rounded-xl px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#137FA8]"
                         />
                     </motion.div>
+
                     <motion.div className="md:col-span-2 flex justify-center mt-8" variants={itemVariants}>
                         <button
                             onClick={handleSubmit}
-                            className="px-10 py-3 bg-gradient-to-r from-[#137FA8] to-[#274E5D] rounded-xl shadow-lg hover:scale-105 transition-transform"
+                            disabled={isLoading}
+                            className={`px-10 py-3 rounded-xl shadow-lg transition-all flex items-center gap-3
+        ${isLoading
+                                    ? "bg-[#274E5D] opacity-70 cursor-not-allowed"
+                                    : "bg-gradient-to-r from-[#137FA8] to-[#274E5D] hover:scale-105"
+                                }`}
                         >
-                            Salvar lançamento
+                            {isLoading && (
+                                <motion.span
+                                    className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                                    animate={{ rotate: 360 }}
+                                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                                />
+                            )}
+                            {isLoading ? "Salvando..." : "Salvar lançamento"}
                         </button>
+
                     </motion.div>
                 </motion.div>
             </main>
+            <AnimatePresence>
+                {toast.show && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 40 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 40 }}
+                        transition={{ duration: 0.3 }}
+                        className={`fixed bottom-6 right-6 z-50 max-w-sm px-6 py-4 rounded-xl shadow-2xl text-white
+                ${toast.type === "success"
+                                ? "bg-[#137FA8]"
+                                : "bg-[#5C0F0F]"
+                            }`}
+                    >
+                        <div className="flex items-start justify-between gap-4">
+                            <span className="font-semibold">{toast.message}</span>
+
+                            <button
+                                onClick={() => setToast(prev => ({ ...prev, show: false }))}
+                                className="text-white/80 hover:text-white text-xl leading-none"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
         </div>
     );
 }

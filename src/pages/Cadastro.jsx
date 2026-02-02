@@ -53,10 +53,25 @@ export default function Cadastro() {
             },
         });
 
+        if (error) {
+            setLoading(false);
+            setAuthError(error.message);
+            return;
+        }
+        const user = data.user;
+        const { error: perfilError } = await supabase
+            .from("perfil")
+            .insert({
+                id: user.id,
+                email: form.email,
+                nome: form.nome,
+            });
+
         setLoading(false);
 
-        if (error) {
-            setAuthError(error.message);
+        if (perfilError) {
+            setAuthError("Erro ao criar perfil");
+            console.error(perfilError);
             return;
         }
 

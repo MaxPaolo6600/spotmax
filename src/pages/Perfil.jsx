@@ -11,6 +11,7 @@ export default function Perfil() {
     const [foto, setFoto] = useState(null);
     const [preview, setPreview] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [nome, setNome] = useState("");
 
     const fileInputRef = useRef(null);
 
@@ -26,14 +27,24 @@ export default function Perfil() {
     }, []);
 
     const buscarPerfil = async (userId) => {
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from("perfil")
-            .select("foto")
+            .select("foto, nome")
             .eq("id", userId)
             .single();
 
-        if (data?.foto) {
-            setPreview(data.foto);
+        if (error) {
+            console.error(error);
+            return;
+        }
+
+        if (data) {
+            if (data.foto) {
+                setPreview(data.foto);
+            }
+            if (data.nome) {
+                setNome(data.nome);
+            }
         }
     };
 
@@ -82,25 +93,25 @@ export default function Perfil() {
             style={{ backgroundColor: bgColor, color: textColor }}
         >
             <Header />
-
             <main className="pt-16 p-6 max-w-6xl mx-auto">
-                <div className="flex flex-col items-start gap-4">
+                <div className="flex flex-col items-center gap-4">
                     <motion.div
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="relative w-32 h-32 cursor-pointer"
+                        className="relative cursor-pointer mt-8"
                         onClick={() => fileInputRef.current.click()}
                     >
-                        <motion.img
-                            src={preview || "/avatar-placeholder.png"}
-                            alt="Foto de perfil"
-                            className="w-32 h-32 rounded-full object-cover border"
-                            initial={{ opacity: 0, y: -20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3 }}
-                        />
+                        <motion.div className="border-2 p-1 border-[#274E5D] rounded-full">
+                            <motion.img
+                                src={preview || "/avatar-placeholder.png"}
+                                className="w-32 h-32 rounded-full object-cover"
+                                initial={{ opacity: 0, y: -20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3 }}
+                            />
+                        </motion.div>
                         <motion.div
                             initial={{ opacity: 0 }}
                             whileHover={{ opacity: 1 }}
@@ -116,6 +127,14 @@ export default function Perfil() {
                         onChange={handleFotoChange}
                         className="hidden"
                     />
+                    <motion.h2
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="text-xl font-semibold mt-2"
+                    >
+                        {nome || "Usuário"}
+                    </motion.h2>
                     <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
