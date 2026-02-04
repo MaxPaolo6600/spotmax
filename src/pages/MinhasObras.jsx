@@ -2,15 +2,26 @@ import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import Header from "../components/Header";
 import { useTheme } from "../context/ThemeContext";
+import MusicPlayer from "../components/MusicPlayer";
 
 export default function MinhasObras() {
     const [obras, setObras] = useState([]);
     const [loading, setLoading] = useState(true);
-const { bgColor, textColor } = useTheme();
+    const { bgColor, textColor } = useTheme();
+
+    const [currentTrack, setCurrentTrack] = useState(null);
 
     useEffect(() => {
         fetchObras();
     }, []);
+
+    function playMusic(musica, cover) {
+        setCurrentTrack({
+            title: musica.nome_musica,
+            audioUrl: musica.audio_url,
+            cover: cover,
+        });
+    }
 
     async function fetchObras() {
         try {
@@ -23,19 +34,20 @@ const { bgColor, textColor } = useTheme();
             const { data, error } = await supabase
                 .from("criacao")
                 .select(`
+        id,
+        tipo,
+        genre,
+        release_date,
+        image_url,
+        albums (
+            nome_album
+        ),
+        musicas (
             id,
-            tipo,
-            genre,
-            release_date,
-            image_url,
-            albums (
-                nome_album
-            ),
-            musicas (
-                id,
-            nome_musica
-            )
-        `)
+            nome_musica,
+            audio_url
+        )
+    `)
                 .eq("user_id", user.id)
                 .order("created_at", { ascending: false });
 
@@ -80,11 +92,18 @@ const { bgColor, textColor } = useTheme();
                                 obra.tipo === "musica" &&
                                 (!obra.albums || obra.albums.length === 0) &&
                                 obra.musicas?.length === 1;
-
                             return (
                                 <div
                                     key={obra.id}
-                                    className="bg-[#212121] rounded-xl p-4 hover:bg-[#274E5D] transition"
+                                    onClick={() => {
+                                        if (obra.musicas?.length === 1) {
+                                            playMusic(obra.musicas[0], obra.image_url);
+                                        }
+                                        if (obra.albums && obra.musicas?.length > 0) {
+                                            playMusic(obra.musicas[0], obra.image_url);
+                                        }
+                                    }}
+                                    className="cursor-pointer bg-[#212121] rounded-xl p-4 hover:bg-[#274E5D] transition"
                                 >
                                     {obra.image_url && (
                                         <img
@@ -103,7 +122,14 @@ const { bgColor, textColor } = useTheme();
                                     {isAlbum && obra.musicas?.length > 0 && (
                                         <ol className="text-gray-400 text-sm mb-2 list-decimal list-inside">
                                             {obra.musicas.map((musica) => (
-                                                <li key={musica.id}>
+                                                <li
+                                                    key={musica.id}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        playMusic(musica, obra.image_url);
+                                                    }}
+                                                    className="cursor-pointer hover:text-white"
+                                                >
                                                     {musica.nome_musica}
                                                 </li>
                                             ))}
@@ -121,6 +147,10 @@ const { bgColor, textColor } = useTheme();
                     </div>
                 )}
             </main>
+            <MusicPlayer
+                track={currentTrack}
+                onClose={() => setCurrentTrack(null)}
+            />
         </div>
     );
 }

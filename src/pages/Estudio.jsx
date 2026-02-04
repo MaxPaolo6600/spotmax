@@ -23,7 +23,7 @@ export default function Estudio() {
     const [toast, setToast] = useState({
         show: false,
         message: "",
-        type: "success", // success | error
+        type: "success",
     });
 
     const [isLoading, setIsLoading] = useState(false);
@@ -127,9 +127,11 @@ export default function Estudio() {
             setToast(prev => ({ ...prev, show: false }));
         }, 3500);
     }
-
     async function handleSubmit() {
         setIsLoading(true);
+
+        let criacaoId = null;
+        let albumCriado = false;
 
         try {
             const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -139,7 +141,6 @@ export default function Estudio() {
             if (formData.image) {
                 imageUrl = await uploadImage(formData.image);
             }
-
             const { data: criacaoData, error: criacaoError } = await supabase
                 .from("criacao")
                 .insert([{
@@ -154,58 +155,65 @@ export default function Estudio() {
 
             if (criacaoError) throw criacaoError;
 
-            const criacaoId = criacaoData.id;
+            criacaoId = criacaoData.id;
 
             if (selectedType === "Álbum" || selectedType === "Ep") {
-                if (formData.name) {
-                    const { error } = await supabase.from("albums").insert([{
+                if (!formData.name.trim()) {
+                    throw new Error("Informe o nome do álbum");
+                }
+                const { error: albumError } = await supabase
+                    .from("albums")
+                    .insert([{
                         criacao_id: criacaoId,
-                        nome_album: formData.name,
+                        nome_album: formData.name.trim(),
                     }]);
-                    if (error) throw error;
+
+                if (albumError) throw albumError;
+
+                albumCriado = true;
+
+                const validTracks = tracks.filter(
+                    t => t.name?.trim() && t.file
+                );
+
+                if (validTracks.length === 0) {
+                    throw new Error("Adicione pelo menos uma música ao álbum");
                 }
 
                 const musicInserts = [];
 
-                for (const track of tracks) {
-                    if (!track.name || !track.file) continue;
-
+                for (const track of validTracks) {
                     const audioUrl = await uploadMusic(track.file, user.id);
 
                     musicInserts.push({
                         criacao_id: criacaoId,
-                        nome_musica: track.name,
+                        nome_musica: track.name.trim(),
                         audio_url: audioUrl,
                     });
                 }
 
-                if (musicInserts.length > 0) {
-                    const { error } = await supabase
-                        .from("musicas")
-                        .insert(musicInserts);
-                    if (error) throw error;
+                const { error: musicError } = await supabase
+                    .from("musicas")
+                    .insert(musicInserts);
+
+                if (musicError) throw musicError;
+            }
+            if (selectedType === "Música Single") {
+                if (!formData.name.trim() || !tracks[0]?.file) {
+                    throw new Error("Informe o nome e o arquivo da música");
                 }
 
-            } else if (selectedType === "Música Single") {
-                const track = tracks[0];
-
-                if (!track?.file || !formData.name.trim()) {
-                    throw new Error("Selecione o arquivo MP3 da música");
-                }
-
-                const audioUrl = await uploadMusic(track.file, user.id);
+                const audioUrl = await uploadMusic(tracks[0].file, user.id);
 
                 const { error } = await supabase.from("musicas").insert([{
                     criacao_id: criacaoId,
                     nome_musica: formData.name.trim(),
                     audio_url: audioUrl,
                 }]);
-
                 if (error) throw error;
             }
 
             showToast("Criação salva com sucesso!", "success");
-
 
             setFormData({
                 name: "",
@@ -214,15 +222,23 @@ export default function Estudio() {
                 image: null,
                 imagePreview: null,
             });
-
             setTracks([{ name: "", file: null }]);
 
         } catch (error) {
-            console.error(error);
-            showToast("Erro ao salvar criação: " + error.message, "error");
+            console.error("ERRO:", error);
+            if (criacaoId) {
+                await supabase.from("musicas").delete().eq("criacao_id", criacaoId);
 
-        }
-        finally {
+                if (albumCriado) {
+                    await supabase.from("albums").delete().eq("criacao_id", criacaoId);
+                }
+
+                await supabase.from("criacao").delete().eq("id", criacaoId);
+            }
+
+            showToast("Erro ao salvar: " + error.message, "error");
+
+        } finally {
             setIsLoading(false);
         }
     }
@@ -248,7 +264,14 @@ export default function Estudio() {
                     {["Álbum", "Ep", "Música Single", "Podcast"].map(item => (
                         <motion.button
                             key={item}
-                            onClick={() => setSelectedType(item)}
+                            onClick={() => {
+                                setSelectedType(item);
+                                if (item === "Álbum" || item === "Ep") {
+                                    setTracks([{ name: "", file: null }]);
+                                } else {
+                                    setTracks([{ name: "", file: null }]);
+                                }
+                            }}
                             className={`px-6 py-3 rounded-xl flex items-center gap-2 font-semibold transition-colors ${selectedType === item
                                 ? "bg-gradient-to-r from-[#137FA8] to-[#274E5D] shadow-lg"
                                 : "bg-[#274E5D] hover:bg-[#212121]"
@@ -343,7 +366,6 @@ export default function Estudio() {
                                                 onChange={e => handleTrackFileChange(index, e.target.files[0])}
                                                 className="text-sm text-gray-300"
                                             />
-
                                             {tracks.length > 1 && (
                                                 <button
                                                     type="button"
@@ -356,7 +378,6 @@ export default function Estudio() {
                                         </motion.div>
                                     ))}
                                 </div>
-
                                 <button
                                     type="button"
                                     onClick={addTrack}
@@ -367,12 +388,50 @@ export default function Estudio() {
                             </motion.div>
                         )}
                     </AnimatePresence>
-
+                    <AnimatePresence>
+                        {(selectedType === "Música Single" || selectedType === "Podcast") && (
+                            <motion.div
+                                className="md:col-span-2 bg-[#212121] p-6 rounded-2xl shadow-lg"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                transition={{ duration: 0.3 }}
+                            >
+                                <label className="block mb-4 text-xl font-medium">
+                                    Arquivo de áudio do{" "}
+                                    <span className="text-[#137FA8]">
+                                        {releaseConfig[selectedType].label}
+                                    </span>
+                                </label>
+                                <motion.div
+                                    className="flex flex-col gap-3 p-4 bg-[#1E1E1E] rounded-xl shadow-inner"
+                                    whileHover={{ scale: 1.01 }}
+                                >
+                                    <input
+                                        type="text"
+                                        placeholder={
+                                            selectedType === "Podcast"
+                                                ? "Nome do episódio"
+                                                : "Nome da música"
+                                        }
+                                        value={tracks[0]?.name || ""}
+                                        onChange={e => handleTrackNameChange(0, e.target.value)}
+                                        className="bg-transparent text-white placeholder-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#137FA8]"
+                                    />
+                                    <input
+                                        type="file"
+                                        accept="audio/mp3,audio/mpeg"
+                                        onChange={e => handleTrackFileChange(0, e.target.files[0])}
+                                        className="text-sm text-gray-300"
+                                    />
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                     <motion.div variants={itemVariants}>
                         <label className="block mb-2 text-xl font-medium">
                             Imagem do <span className="text-[#137FA8]">{releaseConfig[selectedType].label}</span>
                         </label>
-
                         <label className="w-56 h-56 flex items-center justify-center bg-[#212121] rounded-2xl cursor-pointer shadow-lg overflow-hidden">
                             <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
                             {formData.imagePreview ? (
@@ -387,7 +446,6 @@ export default function Estudio() {
                             )}
                         </label>
                     </motion.div>
-
                     <motion.div variants={itemVariants}>
                         <label className="block mb-2 text-xl font-medium">
                             Data de lançamento do <span className="text-[#137FA8]">{releaseConfig[selectedType].label}</span>
@@ -400,7 +458,6 @@ export default function Estudio() {
                             className="w-full bg-[#212121] rounded-xl px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#137FA8]"
                         />
                     </motion.div>
-
                     <motion.div className="md:col-span-2 flex justify-center mt-8" variants={itemVariants}>
                         <button
                             onClick={handleSubmit}
@@ -420,7 +477,6 @@ export default function Estudio() {
                             )}
                             {isLoading ? "Salvando..." : "Salvar lançamento"}
                         </button>
-
                     </motion.div>
                 </motion.div>
             </main>
@@ -439,7 +495,6 @@ export default function Estudio() {
                     >
                         <div className="flex items-start justify-between gap-4">
                             <span className="font-semibold">{toast.message}</span>
-
                             <button
                                 onClick={() => setToast(prev => ({ ...prev, show: false }))}
                                 className="text-white/80 hover:text-white text-xl leading-none"
@@ -450,7 +505,6 @@ export default function Estudio() {
                     </motion.div>
                 )}
             </AnimatePresence>
-
         </div>
     );
 }
