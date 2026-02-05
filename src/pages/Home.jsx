@@ -31,6 +31,7 @@ export default function App() {
             genre,
             release_date,
             image_url,
+            nome_artista,
             albums (
                 id,
                 nome_album
@@ -49,7 +50,8 @@ export default function App() {
         return (
             <div>
                 <Header />
-                <div className="min-h-screen bg-[#262B2D] text-white flex items-center justify-center">
+                <div className="min-h-screen flex items-center justify-center"
+                    style={{ backgroundColor: bgColor, color: textColor }}>
                     Carregando...
                 </div>
             </div>
@@ -124,14 +126,14 @@ export default function App() {
                                             )}
                                         </div>
                                         <div className="p-3">
-                                            <h2 className="text-sm font-semibold truncate">
+                                            <h2 className="text-2xl font-semibold truncate">
                                                 {musica.nome_musica}
                                             </h2>
                                             <p className="text-xs opacity-70 truncate">
-                                                {album?.nome_album || "Sem álbum"}
+                                                {album?.nome_album || ""}
                                             </p>
-                                            <p className="text-xs opacity-50 mb-2">
-                                                {musica.criacao?.genre}
+                                            <p className="text-sm opacity-50 mb-2">
+                                                {musica.criacao?.nome_artista}
                                             </p>
                                             {musica.audio_url && (
                                                 <audio

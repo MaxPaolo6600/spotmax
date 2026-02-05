@@ -39,6 +39,7 @@ export default function MinhasObras() {
         genre,
         release_date,
         image_url,
+        nome_artista,
         albums (
             nome_album
         ),
@@ -60,11 +61,75 @@ export default function MinhasObras() {
             setLoading(false);
         }
     }
+
+    async function deleteObra(obraId) {
+        const confirmDelete =
+            confirm("Tem certeza que deseja deletar esta obra?");
+        if (!confirmDelete) return;
+        try {
+            const { data: musicas, error: fetchError } =
+                await supabase
+                    .from("musicas")
+                    .select("audio_url")
+                    .eq("criacao_id", obraId);
+            if (fetchError) throw fetchError;
+            if (musicas?.length > 0) {
+                const paths = musicas.map(m => {
+                    const url = m.audio_url;
+                    const path =
+                        url.split("/musicas/")[1];
+                    return path;
+                });
+
+                const { error: storageError } =
+                    await supabase.storage
+                        .from("musicas")
+                        .remove(paths);
+                if (storageError) throw storageError;
+            }
+
+            const { data: criacao } =
+                await supabase
+                    .from("criacao")
+                    .select("image_url")
+                    .eq("id", obraId)
+                    .single();
+
+            if (criacao?.image_url) {
+
+                const imagePath =
+                    criacao.image_url.split("/albums/")[1];
+                await supabase.storage
+                    .from("albums")
+                    .remove([imagePath]);
+            }
+            await supabase
+                .from("musicas")
+                .delete()
+                .eq("criacao_id", obraId);
+            await supabase
+                .from("albums")
+                .delete()
+                .eq("criacao_id", obraId);
+            await supabase
+                .from("criacao")
+                .delete()
+                .eq("id", obraId);
+            setObras(prev =>
+                prev.filter(o => o.id !== obraId)
+            );
+        }
+        catch (err) {
+            console.error(err);
+            alert("Erro ao deletar obra");
+        }
+    }
     if (loading) {
         return (
             <div>
                 <Header />
-                <div className="min-h-screen bg-[#262B2D] text-white flex items-center justify-center">
+                <div className="min-h-screen flex items-center justify-center"
+                    style={{ backgroundColor: bgColor, color: textColor }}>
                     Carregando...
                 </div>
             </div>
@@ -103,8 +168,19 @@ export default function MinhasObras() {
                                             playMusic(obra.musicas[0], obra.image_url);
                                         }
                                     }}
-                                    className="cursor-pointer bg-[#212121] rounded-xl p-4 hover:bg-[#274E5D] transition"
+                                    className="relative cursor-pointer bg-[#212121] rounded-xl p-4 hover:bg-[#274E5D] transition"
                                 >
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteObra(obra.id);
+                                        }}
+                                        className="absolute top-3 right-3 px-3 py-1 rounded-lg text-sm font-semibold transition"
+                                        style={{ backgroundColor: "#5C0F0F" }}
+                                    >
+                                        Deletar
+                                    </button>
+
                                     {obra.image_url && (
                                         <img
                                             src={obra.image_url}

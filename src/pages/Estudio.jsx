@@ -134,115 +134,144 @@ export default function Estudio() {
         let albumCriado = false;
 
         try {
-            const { data: { user }, error: userError } = await supabase.auth.getUser();
-            if (userError || !user) throw new Error("Usuário não autenticado");
+            const {
+                data: { user },
+                error: userError
+            } = await supabase.auth.getUser();
+
+            if (userError || !user)
+                throw new Error("Usuário não autenticado");
+
+            const { data: perfil, error: profileError } =
+                await supabase
+                    .from("perfil")
+                    .select("nome")
+                    .eq("id", user.id)
+                    .single();
+            if (profileError)
+                throw profileError;
 
             let imageUrl = null;
-            if (formData.image) {
-                imageUrl = await uploadImage(formData.image);
-            }
-            const { data: criacaoData, error: criacaoError } = await supabase
-                .from("criacao")
-                .insert([{
-                    user_id: user.id,
-                    tipo: releaseConfig[selectedType].label,
-                    genre: formData.genre,
-                    release_date: formData.releaseDate,
-                    image_url: imageUrl,
-                }])
-                .select()
-                .single();
 
-            if (criacaoError) throw criacaoError;
+            if (formData.image)
+                imageUrl = await uploadImage(formData.image);
+
+            const { data: criacaoData, error: criacaoError } =
+                await supabase
+                    .from("criacao")
+                    .insert([{
+                        user_id: user.id,
+                        tipo: releaseConfig[selectedType].label,
+                        genre: formData.genre,
+                        release_date: formData.releaseDate,
+                        image_url: imageUrl,
+                        nome_artista: perfil.nome
+                    }])
+                    .select()
+                    .single();
+
+            if (criacaoError)
+                throw criacaoError;
 
             criacaoId = criacaoData.id;
 
             if (selectedType === "Álbum" || selectedType === "Ep") {
-                if (!formData.name.trim()) {
-                    throw new Error("Informe o nome do álbum");
-                }
-                const { error: albumError } = await supabase
-                    .from("albums")
-                    .insert([{
-                        criacao_id: criacaoId,
-                        nome_album: formData.name.trim(),
-                    }]);
 
-                if (albumError) throw albumError;
+                if (!formData.name.trim())
+                    throw new Error("Informe o nome do álbum");
+
+                const { error: albumError } =
+                    await supabase
+                        .from("albums")
+                        .insert([{
+                            criacao_id: criacaoId,
+                            nome_album: formData.name.trim()
+                        }]);
+
+                if (albumError)
+                    throw albumError;
 
                 albumCriado = true;
 
-                const validTracks = tracks.filter(
-                    t => t.name?.trim() && t.file
-                );
+                const validTracks =
+                    tracks.filter(t => t.name?.trim() && t.file);
 
-                if (validTracks.length === 0) {
-                    throw new Error("Adicione pelo menos uma música ao álbum");
-                }
+                if (validTracks.length === 0)
+                    throw new Error("Adicione pelo menos uma música");
 
                 const musicInserts = [];
-
                 for (const track of validTracks) {
-                    const audioUrl = await uploadMusic(track.file, user.id);
-
+                    const audioUrl =
+                        await uploadMusic(track.file, user.id);
                     musicInserts.push({
                         criacao_id: criacaoId,
                         nome_musica: track.name.trim(),
-                        audio_url: audioUrl,
+                        audio_url: audioUrl
                     });
                 }
 
-                const { error: musicError } = await supabase
-                    .from("musicas")
-                    .insert(musicInserts);
+                const { error: musicError } =
+                    await supabase
+                        .from("musicas")
+                        .insert(musicInserts);
 
-                if (musicError) throw musicError;
+                if (musicError)
+                    throw musicError;
             }
+
             if (selectedType === "Música Single") {
-                if (!formData.name.trim() || !tracks[0]?.file) {
-                    throw new Error("Informe o nome e o arquivo da música");
-                }
-
-                const audioUrl = await uploadMusic(tracks[0].file, user.id);
-
-                const { error } = await supabase.from("musicas").insert([{
-                    criacao_id: criacaoId,
-                    nome_musica: formData.name.trim(),
-                    audio_url: audioUrl,
-                }]);
-                if (error) throw error;
+                if (!tracks[0]?.file)
+                    throw new Error("Envie uma música");
+                const audioUrl =
+                    await uploadMusic(tracks[0].file, user.id);
+                const { error } =
+                    await supabase
+                        .from("musicas")
+                        .insert([{
+                            criacao_id: criacaoId,
+                            nome_musica: formData.name,
+                            audio_url: audioUrl
+                        }]);
+                if (error)
+                    throw error;
             }
 
-            showToast("Criação salva com sucesso!", "success");
+            showToast("Salvo com sucesso");
 
             setFormData({
                 name: "",
                 genre: "",
                 releaseDate: "",
                 image: null,
-                imagePreview: null,
+                imagePreview: null
             });
             setTracks([{ name: "", file: null }]);
+        }
 
-        } catch (error) {
-            console.error("ERRO:", error);
+        catch (error) {
+
+            console.error(error);
+
             if (criacaoId) {
-                await supabase.from("musicas").delete().eq("criacao_id", criacaoId);
-
-                if (albumCriado) {
-                    await supabase.from("albums").delete().eq("criacao_id", criacaoId);
-                }
-
-                await supabase.from("criacao").delete().eq("id", criacaoId);
+                await supabase
+                    .from("musicas")
+                    .delete()
+                    .eq("criacao_id", criacaoId);
+                await supabase
+                    .from("albums")
+                    .delete()
+                    .eq("criacao_id", criacaoId);
+                await supabase
+                    .from("criacao")
+                    .delete()
+                    .eq("id", criacaoId);
             }
-
-            showToast("Erro ao salvar: " + error.message, "error");
-
-        } finally {
+            showToast(error.message, "error");
+        }
+        finally {
             setIsLoading(false);
         }
     }
-
     return (
         <div className="min-h-screen bg-[#262B2D] text-white">
             <Header />
@@ -254,7 +283,6 @@ export default function Estudio() {
                 >
                     Crie seu lançamento
                 </motion.h1>
-
                 <motion.div
                     className="flex flex-wrap justify-center gap-4 mb-12"
                     variants={containerVariants}
@@ -289,7 +317,6 @@ export default function Estudio() {
                         </motion.button>
                     ))}
                 </motion.div>
-
                 <motion.div
                     className="grid grid-cols-1 md:grid-cols-2 gap-10"
                     variants={containerVariants}
@@ -309,7 +336,6 @@ export default function Estudio() {
                             className="w-full bg-[#212121] placeholder-white rounded-xl px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#137FA8]"
                         />
                     </motion.div>
-
                     <motion.div variants={itemVariants}>
                         <label className="block mb-2 text-xl font-medium">Estilo da obra</label>
                         <div className="relative">
@@ -332,7 +358,6 @@ export default function Estudio() {
                             />
                         </div>
                     </motion.div>
-
                     <AnimatePresence>
                         {(selectedType === "Álbum" || selectedType === "Ep") && (
                             <motion.div
@@ -344,7 +369,6 @@ export default function Estudio() {
                                 <label className="block mb-4 text-xl font-medium">
                                     Faixas do <span className="text-[#137FA8]">{releaseConfig[selectedType].label}</span>
                                 </label>
-
                                 <div className="space-y-4">
                                     {tracks.map((track, index) => (
                                         <motion.div
@@ -359,7 +383,6 @@ export default function Estudio() {
                                                 placeholder={`Nome da música ${index + 1}`}
                                                 className="bg-transparent text-white placeholder-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#137FA8]"
                                             />
-
                                             <input
                                                 type="file"
                                                 accept="audio/mp3,audio/mpeg"
