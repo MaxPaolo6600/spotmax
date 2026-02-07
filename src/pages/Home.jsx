@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Header from "../components/Header";
 import { supabase } from "../supabaseClient";
 import { useTheme } from "../context/ThemeContext";
+import { motion, AnimatePresence } from "framer-motion";
 import procurar from "../assets/procurar.png";
 import person from "../assets/do-utilizador (1).png";
 import direita from "../assets/angulo-direito.png";
@@ -18,21 +19,25 @@ export default function App() {
 
     async function carregarPagina() {
         try {
-            const { data, error } = await supabase.from("musicas").select(`
-                    id,
-                    nome_musica,
-                    criacao (
-                        id,
-                        tipo,
-                        genre,
-                        release_date,
-                        image_url,
-                        albums (
-                            id,
-                            nome_album
-                        )
-                    )
-                `);
+            const { data, error } = await supabase
+                .from("musicas")
+                .select(`
+        id,
+        nome_musica,
+        audio_url,
+        criacao (
+            id,
+            tipo,
+            genre,
+            release_date,
+            image_url,
+            nome_artista,
+            albums (
+                id,
+                nome_album
+            )
+        )
+    `);
             if (error) throw error;
             setMusicas(data);
         } catch (error) {
@@ -45,7 +50,8 @@ export default function App() {
         return (
             <div>
                 <Header />
-                <div className="min-h-screen bg-[#262B2D] text-white flex items-center justify-center">
+                <div className="min-h-screen flex items-center justify-center"
+                    style={{ backgroundColor: bgColor, color: textColor }}>
                     Carregando...
                 </div>
             </div>
@@ -75,67 +81,86 @@ export default function App() {
                         <img src={person} alt="Perfil" className="h-5 w-5" />
                     </div>
                 </div>
-                <h1 className="text-center mt-10 text-4xl" style={{color: textColor}}>Músicas</h1>
+                <h1 className="text-center mt-10 text-4xl" style={{ color: textColor }}>Músicas</h1>
                 <div className="relative mt-12">
-                    <div
-                        className="pointer-events-none absolute left-0 top-0 h-full w-16 
-                                    bg-gradient-to-r from-[#262B2D] to-transparent z-10"
-                    />
-                    <div
-                        className="pointer-events-none absolute right-0 top-0 h-full w-16 
-                                    bg-gradient-to-l from-[#262B2D] to-transparent z-10"
-                    />
-                    <button
+                    <motion.button
+                        whileHover={{ scale: 1.15 }}
+                        whileTap={{ scale: 0.95 }}
+                        transition={{ type: "spring", stiffness: 300 }}
                         onClick={() => {
                             document.getElementById("carousel").scrollLeft -= 300;
                         }}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-[#1f1f1f]/80 backdrop-blur-md hover:bg-[#2a2a2a] p-3 rounded-full shadow-[0_8px_25px_rgba(0,0,0,0.6)] hover:scale-110 transition-all duration-300"
+                        className="absolute left-2 top-1/2 -translate-y-1/2 z-20 backdrop-blur-md p-3 rounded-full shadow-[0_8px_25px_rgba(0,0,0,0.6)]"
                     >
                         <img src={esquerda} alt="Esquerda" className="h-6 w-6" />
-                    </button>
+                    </motion.button>
                     <div
                         id="carousel"
                         className="flex gap-6 overflow-x-auto scroll-smooth px-12 scrollbar-hide snap-x snap-mandatory"
                     >
-                        {musicas.map((musica) => {
-                            const album = musica.criacao?.albums?.[0];
-                            return (
-                                <div
-                                    key={musica.id}
-                                    className="min-w-[180px] snap-start bg-[#212121] rounded-2xl overflow-hidden hover:bg-[#2f2f2f] hover:-translate-y-2 hover:shadow-xl transition-all duration-300"
-                                >
-                                    <div className="aspect-square w-full bg-[#1a1a1a]">
-                                        {musica.criacao?.image_url && (
-                                            <img
-                                                src={musica.criacao.image_url}
-                                                alt={album?.nome_album}
-                                                className="w-full h-full object-cover p-4 rounded-2xl"
-                                            />
-                                        )}
-                                    </div>
-                                    <div className="p-3">
-                                        <h2 className="text-sm font-semibold truncate">
-                                            {musica.nome_musica}
-                                        </h2>
-                                        <p className="text-xs opacity-70 truncate">
-                                            {album?.nome_album || "Sem álbum"}
-                                        </p>
-                                        <p className="text-xs opacity-50">
-                                            {musica.criacao?.genre}
-                                        </p>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                        <AnimatePresence>
+                            {musicas.map((musica, index) => {
+                                const album = musica.criacao?.albums?.[0];
+                                return (
+                                    <motion.div
+                                        key={musica.id}
+                                        initial={{ opacity: 0, x: 40 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -40 }}
+                                        transition={{
+                                            delay: index * 0.05,
+                                            duration: 0.4,
+                                            ease: "easeOut"
+                                        }}
+                                        className="snap-start bg-[#212121] rounded-2xl overflow-hidden flex flex-col justify-between"
+                                    >
+                                        <div className="bg-[#1a1a1a] p-3 h-full flex">
+                                            {musica.criacao?.image_url && (
+                                                <motion.img
+                                                    src={musica.criacao.image_url}
+                                                    alt={album?.nome_album}
+                                                    className="w-100 object-cover rounded-2xl flex align-center"
+                                                    whileHover={{ scale: 1.05 }}
+                                                    transition={{ duration: 0.3 }}
+                                                />
+                                            )}
+                                        </div>
+                                        <div className="p-3">
+                                            <h2 className="text-2xl font-semibold truncate">
+                                                {musica.nome_musica}
+                                            </h2>
+                                            <p className="text-xs opacity-70 truncate">
+                                                {album?.nome_album || ""}
+                                            </p>
+                                            <p className="text-sm opacity-50 mb-2">
+                                                {musica.criacao?.nome_artista}
+                                            </p>
+                                            {musica.audio_url && (
+                                                <audio
+                                                    controls
+                                                    className="w-full h-8"
+                                                    src={musica.audio_url}
+                                                >
+                                                    Seu navegador não suporta áudio.
+                                                </audio>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </AnimatePresence>
                     </div>
-                    <button
+                    <motion.button
+                        whileHover={{ scale: 1.15 }}
+                        whileTap={{ scale: 0.95 }}
+                        transition={{ type: "spring", stiffness: 300 }}
                         onClick={() => {
-                            document.getElementById("carousel").scrollLeft += 300;
+                            document.getElementById("carousel").scrollLeft -= 300;
                         }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-[#1f1f1f]/80 backdrop-blur-md hover:bg-[#2a2a2a] p-3 rounded-full shadow-[0_8px_25px_rgba(0,0,0,0.6)] hover:scale-110 transition-all duration-300"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 backdrop-blur-md p-3 rounded-full shadow-[0_8px_25px_rgba(0,0,0,0.6)]"
                     >
                         <img src={direita} alt="Direita" className="h-6 w-6" />
-                    </button>
+                    </motion.button>
                 </div>
             </main>
         </div>

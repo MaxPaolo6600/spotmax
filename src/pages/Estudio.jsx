@@ -127,106 +127,151 @@ export default function Estudio() {
             setToast(prev => ({ ...prev, show: false }));
         }, 3500);
     }
-
     async function handleSubmit() {
         setIsLoading(true);
 
+        let criacaoId = null;
+        let albumCriado = false;
+
         try {
-            const { data: { user }, error: userError } = await supabase.auth.getUser();
-            if (userError || !user) throw new Error("Usuário não autenticado");
+            const {
+                data: { user },
+                error: userError
+            } = await supabase.auth.getUser();
+
+            if (userError || !user)
+                throw new Error("Usuário não autenticado");
+
+            const { data: perfil, error: profileError } =
+                await supabase
+                    .from("perfil")
+                    .select("nome")
+                    .eq("id", user.id)
+                    .single();
+            if (profileError)
+                throw profileError;
 
             let imageUrl = null;
-            if (formData.image) {
+
+            if (formData.image)
                 imageUrl = await uploadImage(formData.image);
-            }
 
-            const { data: criacaoData, error: criacaoError } = await supabase
-                .from("criacao")
-                .insert([{
-                    user_id: user.id,
-                    tipo: releaseConfig[selectedType].label,
-                    genre: formData.genre,
-                    release_date: formData.releaseDate,
-                    image_url: imageUrl,
-                }])
-                .select()
-                .single();
+            const { data: criacaoData, error: criacaoError } =
+                await supabase
+                    .from("criacao")
+                    .insert([{
+                        user_id: user.id,
+                        tipo: releaseConfig[selectedType].label,
+                        genre: formData.genre,
+                        release_date: formData.releaseDate,
+                        image_url: imageUrl,
+                        nome_artista: perfil.nome
+                    }])
+                    .select()
+                    .single();
 
-            if (criacaoError) throw criacaoError;
+            if (criacaoError)
+                throw criacaoError;
 
-            const criacaoId = criacaoData.id;
+            criacaoId = criacaoData.id;
 
             if (selectedType === "Álbum" || selectedType === "Ep") {
-                if (formData.name) {
-                    const { error } = await supabase.from("albums").insert([{
-                        criacao_id: criacaoId,
-                        nome_album: formData.name,
-                    }]);
-                    if (error) throw error;
-                }
+
+                if (!formData.name.trim())
+                    throw new Error("Informe o nome do álbum");
+
+                const { error: albumError } =
+                    await supabase
+                        .from("albums")
+                        .insert([{
+                            criacao_id: criacaoId,
+                            nome_album: formData.name.trim()
+                        }]);
+
+                if (albumError)
+                    throw albumError;
+
+                albumCriado = true;
+
+                const validTracks =
+                    tracks.filter(t => t.name?.trim() && t.file);
+
+                if (validTracks.length === 0)
+                    throw new Error("Adicione pelo menos uma música");
 
                 const musicInserts = [];
-
-                for (const track of tracks) {
-                    if (!track.name || !track.file) continue;
-
-                    const audioUrl = await uploadMusic(track.file, user.id);
-
+                for (const track of validTracks) {
+                    const audioUrl =
+                        await uploadMusic(track.file, user.id);
                     musicInserts.push({
                         criacao_id: criacaoId,
-                        nome_musica: track.name,
-                        audio_url: audioUrl,
+                        nome_musica: track.name.trim(),
+                        audio_url: audioUrl
                     });
                 }
 
-                if (musicInserts.length > 0) {
-                    const { error } = await supabase
+                const { error: musicError } =
+                    await supabase
                         .from("musicas")
                         .insert(musicInserts);
-                    if (error) throw error;
-                }
 
-            } else if (selectedType === "Música Single") {
-                const track = tracks[0];
-
-                if (!track?.file || !formData.name.trim()) {
-                    throw new Error("Selecione o arquivo MP3 da música");
-                }
-
-                const audioUrl = await uploadMusic(track.file, user.id);
-
-                const { error } = await supabase.from("musicas").insert([{
-                    criacao_id: criacaoId,
-                    nome_musica: formData.name.trim(),
-                    audio_url: audioUrl,
-                }]);
-
-                if (error) throw error;
+                if (musicError)
+                    throw musicError;
             }
 
-            showToast("Criação salva com sucesso!", "success");
+            if (selectedType === "Música Single") {
+                if (!tracks[0]?.file)
+                    throw new Error("Envie uma música");
+                const audioUrl =
+                    await uploadMusic(tracks[0].file, user.id);
+                const { error } =
+                    await supabase
+                        .from("musicas")
+                        .insert([{
+                            criacao_id: criacaoId,
+                            nome_musica: formData.name,
+                            audio_url: audioUrl
+                        }]);
+                if (error)
+                    throw error;
+            }
 
+            showToast("Salvo com sucesso");
 
             setFormData({
                 name: "",
                 genre: "",
                 releaseDate: "",
                 image: null,
-                imagePreview: null,
+                imagePreview: null
             });
-
             setTracks([{ name: "", file: null }]);
+        }
 
-        } catch (error) {
+        catch (error) {
+
             console.error(error);
-            showToast("Erro ao salvar criação: " + error.message, "error");
 
+            if (criacaoId) {
+                await supabase
+                    .from("musicas")
+                    .delete()
+                    .eq("criacao_id", criacaoId);
+                await supabase
+                    .from("albums")
+                    .delete()
+                    .eq("criacao_id", criacaoId);
+                await supabase
+                    .from("criacao")
+                    .delete()
+                    .eq("id", criacaoId);
+            }
+            showToast(error.message, "error");
         }
         finally {
             setIsLoading(false);
         }
     }
-
     return (
         <div className="min-h-screen bg-[#262B2D] text-white">
             <Header />
@@ -238,7 +283,6 @@ export default function Estudio() {
                 >
                     Crie seu lançamento
                 </motion.h1>
-
                 <motion.div
                     className="flex flex-wrap justify-center gap-4 mb-12"
                     variants={containerVariants}
@@ -248,7 +292,14 @@ export default function Estudio() {
                     {["Álbum", "Ep", "Música Single", "Podcast"].map(item => (
                         <motion.button
                             key={item}
-                            onClick={() => setSelectedType(item)}
+                            onClick={() => {
+                                setSelectedType(item);
+                                if (item === "Álbum" || item === "Ep") {
+                                    setTracks([{ name: "", file: null }]);
+                                } else {
+                                    setTracks([{ name: "", file: null }]);
+                                }
+                            }}
                             className={`px-6 py-3 rounded-xl flex items-center gap-2 font-semibold transition-colors ${selectedType === item
                                 ? "bg-gradient-to-r from-[#137FA8] to-[#274E5D] shadow-lg"
                                 : "bg-[#274E5D] hover:bg-[#212121]"
@@ -266,7 +317,6 @@ export default function Estudio() {
                         </motion.button>
                     ))}
                 </motion.div>
-
                 <motion.div
                     className="grid grid-cols-1 md:grid-cols-2 gap-10"
                     variants={containerVariants}
@@ -286,7 +336,6 @@ export default function Estudio() {
                             className="w-full bg-[#212121] placeholder-white rounded-xl px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#137FA8]"
                         />
                     </motion.div>
-
                     <motion.div variants={itemVariants}>
                         <label className="block mb-2 text-xl font-medium">Estilo da obra</label>
                         <div className="relative">
@@ -309,7 +358,6 @@ export default function Estudio() {
                             />
                         </div>
                     </motion.div>
-
                     <AnimatePresence>
                         {(selectedType === "Álbum" || selectedType === "Ep") && (
                             <motion.div
@@ -321,7 +369,6 @@ export default function Estudio() {
                                 <label className="block mb-4 text-xl font-medium">
                                     Faixas do <span className="text-[#137FA8]">{releaseConfig[selectedType].label}</span>
                                 </label>
-
                                 <div className="space-y-4">
                                     {tracks.map((track, index) => (
                                         <motion.div
@@ -336,14 +383,12 @@ export default function Estudio() {
                                                 placeholder={`Nome da música ${index + 1}`}
                                                 className="bg-transparent text-white placeholder-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#137FA8]"
                                             />
-
                                             <input
                                                 type="file"
                                                 accept="audio/mp3,audio/mpeg"
                                                 onChange={e => handleTrackFileChange(index, e.target.files[0])}
                                                 className="text-sm text-gray-300"
                                             />
-
                                             {tracks.length > 1 && (
                                                 <button
                                                     type="button"
@@ -356,7 +401,6 @@ export default function Estudio() {
                                         </motion.div>
                                     ))}
                                 </div>
-
                                 <button
                                     type="button"
                                     onClick={addTrack}
@@ -367,12 +411,50 @@ export default function Estudio() {
                             </motion.div>
                         )}
                     </AnimatePresence>
-
+                    <AnimatePresence>
+                        {(selectedType === "Música Single" || selectedType === "Podcast") && (
+                            <motion.div
+                                className="md:col-span-2 bg-[#212121] p-6 rounded-2xl shadow-lg"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                transition={{ duration: 0.3 }}
+                            >
+                                <label className="block mb-4 text-xl font-medium">
+                                    Arquivo de áudio do{" "}
+                                    <span className="text-[#137FA8]">
+                                        {releaseConfig[selectedType].label}
+                                    </span>
+                                </label>
+                                <motion.div
+                                    className="flex flex-col gap-3 p-4 bg-[#1E1E1E] rounded-xl shadow-inner"
+                                    whileHover={{ scale: 1.01 }}
+                                >
+                                    <input
+                                        type="text"
+                                        placeholder={
+                                            selectedType === "Podcast"
+                                                ? "Nome do episódio"
+                                                : "Nome da música"
+                                        }
+                                        value={tracks[0]?.name || ""}
+                                        onChange={e => handleTrackNameChange(0, e.target.value)}
+                                        className="bg-transparent text-white placeholder-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#137FA8]"
+                                    />
+                                    <input
+                                        type="file"
+                                        accept="audio/mp3,audio/mpeg"
+                                        onChange={e => handleTrackFileChange(0, e.target.files[0])}
+                                        className="text-sm text-gray-300"
+                                    />
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                     <motion.div variants={itemVariants}>
                         <label className="block mb-2 text-xl font-medium">
                             Imagem do <span className="text-[#137FA8]">{releaseConfig[selectedType].label}</span>
                         </label>
-
                         <label className="w-56 h-56 flex items-center justify-center bg-[#212121] rounded-2xl cursor-pointer shadow-lg overflow-hidden">
                             <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
                             {formData.imagePreview ? (
@@ -387,7 +469,6 @@ export default function Estudio() {
                             )}
                         </label>
                     </motion.div>
-
                     <motion.div variants={itemVariants}>
                         <label className="block mb-2 text-xl font-medium">
                             Data de lançamento do <span className="text-[#137FA8]">{releaseConfig[selectedType].label}</span>
@@ -400,7 +481,6 @@ export default function Estudio() {
                             className="w-full bg-[#212121] rounded-xl px-4 py-3 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#137FA8]"
                         />
                     </motion.div>
-
                     <motion.div className="md:col-span-2 flex justify-center mt-8" variants={itemVariants}>
                         <button
                             onClick={handleSubmit}
@@ -420,7 +500,6 @@ export default function Estudio() {
                             )}
                             {isLoading ? "Salvando..." : "Salvar lançamento"}
                         </button>
-
                     </motion.div>
                 </motion.div>
             </main>
@@ -439,7 +518,6 @@ export default function Estudio() {
                     >
                         <div className="flex items-start justify-between gap-4">
                             <span className="font-semibold">{toast.message}</span>
-
                             <button
                                 onClick={() => setToast(prev => ({ ...prev, show: false }))}
                                 className="text-white/80 hover:text-white text-xl leading-none"
@@ -450,7 +528,6 @@ export default function Estudio() {
                     </motion.div>
                 )}
             </AnimatePresence>
-
         </div>
     );
 }
