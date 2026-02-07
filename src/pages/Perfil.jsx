@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import Header from "../components/Header";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../supabaseClient";
 import { useTheme } from "../context/ThemeContext";
 
@@ -12,6 +12,12 @@ export default function Perfil() {
     const [preview, setPreview] = useState(null);
     const [loading, setLoading] = useState(false);
     const [nome, setNome] = useState("");
+
+    const [toast, setToast] = useState({
+        show: false,
+        message: "",
+        type: "success",
+    });
 
     const fileInputRef = useRef(null);
 
@@ -56,6 +62,14 @@ export default function Perfil() {
         setPreview(URL.createObjectURL(file));
     };
 
+    function showToast(message, type = "success") {
+        setToast({ show: true, message, type });
+
+        setTimeout(() => {
+            setToast(prev => ({ ...prev, show: false }));
+        }, 3500);
+    }
+
     const salvarFoto = async () => {
         if (!foto || !user) return;
 
@@ -69,7 +83,7 @@ export default function Perfil() {
             .upload(fileName, foto, { upsert: true });
 
         if (uploadError) {
-            alert("Erro ao enviar foto");
+            showToast("Erro ao enviar foto");
             setLoading(false);
             return;
         }
@@ -84,7 +98,7 @@ export default function Perfil() {
         });
 
         setLoading(false);
-        alert("Foto atualizada com sucesso!");
+        showToast("Foto atualizada com sucesso!");
     };
 
     return (
@@ -148,6 +162,32 @@ export default function Perfil() {
                     </motion.button>
                 </div>
             </main>
+            <AnimatePresence>
+                {toast.show && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 40 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 40 }}
+                        transition={{ duration: 0.3 }}
+                        className={`fixed bottom-6 right-6 z-50 max-w-sm px-6 py-4 rounded-xl shadow-2xl text-white
+                ${toast.type === "success"
+                                ? "bg-[#137FA8]"
+                                : "bg-[#5C0F0F]"
+                            }`}
+                    >
+                        <div className="flex items-start justify-between gap-4">
+                            <span className="font-semibold">{toast.message}</span>
+
+                            <button
+                                onClick={() => setToast(prev => ({ ...prev, show: false }))}
+                                className="text-white/80 hover:text-white text-xl leading-none"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

@@ -23,7 +23,7 @@ export default function Estudio() {
     const [toast, setToast] = useState({
         show: false,
         message: "",
-        type: "success", // success | error
+        type: "success",
     });
 
     const [isLoading, setIsLoading] = useState(false);
