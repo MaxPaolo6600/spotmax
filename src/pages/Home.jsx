@@ -45,7 +45,6 @@ export default function App() {
         } finally {
             setLoading(false);
         }
-
     }
     if (loading) {
         return (

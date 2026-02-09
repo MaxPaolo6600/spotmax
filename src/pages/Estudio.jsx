@@ -156,12 +156,15 @@ export default function Estudio() {
         }, 3500);
     }
     async function handleSubmit() {
+
         setIsLoading(true);
 
         let criacaoId = null;
-        let albumCriado = false;
+        let albumId = null;
 
         try {
+
+            // 1. pegar usuário logado
             const {
                 data: { user },
                 error: userError
@@ -170,30 +173,37 @@ export default function Estudio() {
             if (userError || !user)
                 throw new Error("Usuário não autenticado");
 
+
+            // 2. pegar nome do artista
             const { data: perfil, error: profileError } =
                 await supabase
                     .from("perfil")
                     .select("nome")
                     .eq("id", user.id)
                     .single();
+
             if (profileError)
                 throw profileError;
 
+
+            // 3. upload imagem
             let imageUrl = null;
 
             if (formData.image)
                 imageUrl = await uploadImage(formData.image);
 
+
+            // 4. criar criacao
             const { data: criacaoData, error: criacaoError } =
                 await supabase
                     .from("criacao")
                     .insert([{
                         user_id: user.id,
-                        tipo: releaseConfig[selectedType].label,
+                        nome_artista: perfil.nome,
+                        tipo: selectedType,
                         genre: formData.genre,
                         release_date: formData.releaseDate,
-                        image_url: imageUrl,
-                        nome_artista: perfil.nome
+                        image_url: imageUrl
                     }])
                     .select()
                     .single();
@@ -203,39 +213,69 @@ export default function Estudio() {
 
             criacaoId = criacaoData.id;
 
+
+            // =====================================================
+            // 5. SE FOR ALBUM OU EP
+            // =====================================================
+
             if (selectedType === "Álbum" || selectedType === "Ep") {
 
                 if (!formData.name.trim())
                     throw new Error("Informe o nome do álbum");
 
-                const { error: albumError } =
+
+                // criar album
+                const { data: albumData, error: albumError } =
                     await supabase
                         .from("albums")
                         .insert([{
-                            criacao_id: criacaoId,
-                            nome_album: formData.name.trim()
-                        }]);
+                            nome_album: formData.name.trim(),
+                            criacao_id: criacaoId
+                        }])
+                        .select()
+                        .single();
 
                 if (albumError)
                     throw albumError;
 
-                albumCriado = true;
+                albumId = albumData.id;
 
+
+                // atualizar criacao com album_id
+                const { error: updateError } =
+                    await supabase
+                        .from("criacao")
+                        .update({
+                            album_id: albumId
+                        })
+                        .eq("id", criacaoId);
+
+                if (updateError)
+                    throw updateError;
+
+
+                // validar músicas
                 const validTracks =
                     tracks.filter(t => t.name?.trim() && t.file);
 
                 if (validTracks.length === 0)
                     throw new Error("Adicione pelo menos uma música");
 
+
+                // upload músicas
                 const musicInserts = [];
+
                 for (const track of validTracks) {
+
                     const audioUrl =
                         await uploadMusic(track.file, user.id);
+
                     musicInserts.push({
                         criacao_id: criacaoId,
                         nome_musica: track.name.trim(),
                         audio_url: audioUrl
                     });
+
                 }
 
                 const { error: musicError } =
@@ -245,27 +285,51 @@ export default function Estudio() {
 
                 if (musicError)
                     throw musicError;
+
             }
 
-            if (selectedType === "Música Single") {
-                if (!tracks[0]?.file)
-                    throw new Error("Envie uma música");
+
+            // =====================================================
+            // 6. SINGLE OU PODCAST
+            // =====================================================
+
+            if (
+                selectedType === "Música Single" ||
+                selectedType === "Podcast"
+            ) {
+
+                const track = tracks[0];
+
+                if (!track?.file)
+                    throw new Error("Envie um arquivo de áudio");
+
                 const audioUrl =
-                    await uploadMusic(tracks[0].file, user.id);
+                    await uploadMusic(track.file, user.id);
+
                 const { error } =
                     await supabase
                         .from("musicas")
                         .insert([{
                             criacao_id: criacaoId,
-                            nome_musica: formData.name,
+                            nome_musica:
+                                track.name || formData.name,
                             audio_url: audioUrl
                         }]);
+
                 if (error)
                     throw error;
+
             }
 
-            showToast("Salvo com sucesso");
 
+            // =====================================================
+            // 7. sucesso
+            // =====================================================
+
+            showToast("Lançamento criado com sucesso");
+
+
+            // reset form
             setFormData({
                 name: "",
                 genre: "",
@@ -273,33 +337,52 @@ export default function Estudio() {
                 image: null,
                 imagePreview: null
             });
-            setTracks([{ name: "", file: null }]);
-        }
 
+            setTracks([
+                { name: "", file: null }
+            ]);
+
+
+        }
         catch (error) {
 
             console.error(error);
 
+
+            // =====================================================
+            // rollback
+            // =====================================================
+
             if (criacaoId) {
+
                 await supabase
                     .from("musicas")
                     .delete()
                     .eq("criacao_id", criacaoId);
+
                 await supabase
                     .from("albums")
                     .delete()
                     .eq("criacao_id", criacaoId);
+
                 await supabase
                     .from("criacao")
                     .delete()
                     .eq("id", criacaoId);
+
             }
+
             showToast(error.message, "error");
+
         }
         finally {
+
             setIsLoading(false);
+
         }
+
     }
+
     return (
         <div className="min-h-screen bg-[#262B2D] text-white">
             <Header />
