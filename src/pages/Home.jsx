@@ -45,6 +45,7 @@ export default function App() {
         } finally {
             setLoading(false);
         }
+
     }
     if (loading) {
         return (
@@ -88,7 +89,8 @@ export default function App() {
                         whileTap={{ scale: 0.95 }}
                         transition={{ type: "spring", stiffness: 300 }}
                         onClick={() => {
-                            document.getElementById("carousel").scrollLeft -= 300;
+                            const carousel = document.getElementById("carousel");
+                            carousel.scrollLeft -= carousel.offsetWidth / 5;
                         }}
                         className="absolute left-2 top-1/2 -translate-y-1/2 z-20 backdrop-blur-md p-3 rounded-full shadow-[0_8px_25px_rgba(0,0,0,0.6)]"
                     >
@@ -96,7 +98,7 @@ export default function App() {
                     </motion.button>
                     <div
                         id="carousel"
-                        className="flex gap-6 overflow-x-auto scroll-smooth px-12 scrollbar-hide snap-x snap-mandatory"
+                        className="flex flex-nowrap gap-6 overflow-x-auto scroll-smooth px-12 scrollbar-hide snap-x snap-mandatory"
                     >
                         <AnimatePresence>
                             {musicas.map((musica, index) => {
@@ -104,7 +106,6 @@ export default function App() {
                                 return (
                                     <motion.div
                                         key={musica.id}
-                                        initial={{ opacity: 0, x: 40 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         exit={{ opacity: 0, x: -40 }}
                                         transition={{
@@ -112,7 +113,7 @@ export default function App() {
                                             duration: 0.4,
                                             ease: "easeOut"
                                         }}
-                                        className="snap-start bg-[#212121] rounded-2xl overflow-hidden flex flex-col justify-between"
+                                        className="snap-start flex-shrink-0 w-[calc((100%-6rem)/5)] bg-[#212121] rounded-2xl overflow-hidden flex flex-col justify-between"
                                     >
                                         <div className="bg-[#1a1a1a] p-3 h-full flex">
                                             {musica.criacao?.image_url && (
@@ -155,7 +156,8 @@ export default function App() {
                         whileTap={{ scale: 0.95 }}
                         transition={{ type: "spring", stiffness: 300 }}
                         onClick={() => {
-                            document.getElementById("carousel").scrollLeft -= 300;
+                            const carousel = document.getElementById("carousel");
+                            carousel.scrollLeft += carousel.offsetWidth / 5;
                         }}
                         className="absolute right-2 top-1/2 -translate-y-1/2 z-20 backdrop-blur-md p-3 rounded-full shadow-[0_8px_25px_rgba(0,0,0,0.6)]"
                     >

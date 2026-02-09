@@ -7,51 +7,65 @@ export default function Header() {
     const [menuAberto, setMenuAberto] = useState(false);
     const [user, setUser] = useState(null);
     const [fotoPerfil, setFotoPerfil] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     const navigate = useNavigate();
+useEffect(() => {
+    let mounted = true;
 
-    useEffect(() => {
-        async function getUserAndProfile() {
-            const { data: { user } } = await supabase.auth.getUser();
+    async function loadInitialSession() {
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!mounted) return;
+
+        const user = session?.user ?? null;
+        setUser(user);
+
+        if (user) {
+            await loadProfilePhoto(user.id);
+        } else {
+            setFotoPerfil(null);
+        }
+        setLoading(false);
+
+    }
+
+    async function loadProfilePhoto(userId) {
+        const { data, error } = await supabase
+            .from("perfil")
+            .select("foto")
+            .eq("id", userId)
+            .single();
+
+        if (!error && data?.foto) {
+            setFotoPerfil(data.foto);
+        } else {
+            setFotoPerfil(null);
+        }
+    }
+
+    loadInitialSession();
+
+    const { data: { subscription } } =
+        supabase.auth.onAuthStateChange(async (_event, session) => {
+
+            const user = session?.user ?? null;
             setUser(user);
 
             if (user) {
-                const { data, error } = await supabase
-                    .from("perfil")
-                    .select("foto")
-                    .eq("id", user.id)
-                    .single();
-
-                if (!error && data?.foto) {
-                    setFotoPerfil(data.foto);
-                }
+                await loadProfilePhoto(user.id);
+            } else {
+                setFotoPerfil(null);
             }
-        }
+        });
 
-        getUserAndProfile();
+    return () => {
+        mounted = false;
+        subscription.unsubscribe();
+    };
 
-        const { data: listener } = supabase.auth.onAuthStateChange(
-            async (_event, session) => {
-                setUser(session?.user || null);
+}, []);
 
-                if (session?.user) {
-                    const { data } = await supabase
-                        .from("perfil")
-                        .select("foto")
-                        .eq("id", session.user.id)
-                        .single();
-
-                    setFotoPerfil(data?.foto || null);
-                } else {
-                    setFotoPerfil(null);
-                }
-            }
-        );
-
-        return () => {
-            listener.subscription.unsubscribe();
-        };
-    }, []);
 
     useEffect(() => {
         if (menuAberto) {
@@ -69,6 +83,8 @@ export default function Header() {
         await supabase.auth.signOut();
         navigate("/Login");
     }
+    if (loading) return null;
+
     return (
         <>
             <header className="bg-[#212121] flex justify-between items-center px-4 h-16 fixed top-0 left-0 w-full z-50">

@@ -28,6 +28,34 @@ export default function Estudio() {
 
     const [isLoading, setIsLoading] = useState(false);
 
+    const genres = [
+        "Hip Hop",
+        "Pop",
+        "Rock",
+        "Eletrônica",
+        "Trap",
+        "R&B",
+        "Funk",
+        "Jazz",
+        "Blues",
+        "Reggae",
+        "Lo-fi",
+        "House",
+        "Techno",
+        "Dubstep",
+        "MPB",
+        "Sertanejo",
+        "Gospel",
+        "Metal",
+        "Indie",
+        "Alternativo",
+    ];
+    const [genreOpen, setGenreOpen] = useState(false);
+    const [genreSearch, setGenreSearch] = useState("");
+    const filteredGenres = genres.filter(g =>
+        g.toLowerCase().includes(genreSearch.toLowerCase())
+    );
+
     const releaseConfig = {
         Álbum: { label: "álbum", namePlaceholder: "Nome do álbum" },
         Ep: { label: "EP", namePlaceholder: "Nome do EP" },
@@ -337,25 +365,63 @@ export default function Estudio() {
                         />
                     </motion.div>
                     <motion.div variants={itemVariants}>
-                        <label className="block mb-2 text-xl font-medium">Estilo da obra</label>
+                        <label className="block mb-2 text-xl font-medium">
+                            Estilo do <span className="text-[#137FA8]">{releaseConfig[selectedType].label}</span>
+                        </label>
                         <div className="relative">
-                            <select
-                                name="genre"
-                                value={formData.genre}
-                                onChange={handleChange}
-                                className="w-full bg-[#212121] rounded-xl px-4 py-3 appearance-none shadow-inner focus:outline-none focus:ring-2 focus:ring-[#137FA8]"
+                            <div
+                                onClick={() => setGenreOpen(!genreOpen)}
+                                className="w-full bg-[#212121] rounded-xl px-4 py-3 shadow-inner cursor-pointer flex justify-between items-center"
                             >
-                                <option value="" hidden>Gêneros musicais</option>
-                                <option value="hiphop">Hip Hop</option>
-                                <option value="pop">Pop</option>
-                                <option value="rock">Rock</option>
-                                <option value="eletronica">Eletrônica</option>
-                            </select>
-                            <img
-                                src={AngleDown}
-                                alt="seta"
-                                className="w-5 h-5 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"
-                            />
+                                <span className={formData.genre}>
+                                    {formData.genre || "Selecionar gênero"}
+                                </span>
+                                <img
+                                    src={AngleDown}
+                                    className={`w-5 h-5 transition-transform ${genreOpen ? "rotate-180" : ""}`}
+                                />
+                            </div>
+                            <AnimatePresence>
+                                {genreOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        className="absolute z-50 mt-2 w-full bg-[#1E1E1E] rounded-xl shadow-xl overflow-hidden"
+                                    >
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar gênero..."
+                                            value={genreSearch}
+                                            onChange={(e) => setGenreSearch(e.target.value)}
+                                            className="w-full px-4 py-3 bg-[#181818] text-white placeholder-gray-400 outline-none"
+                                        />
+                                        <div className="max-h-60 overflow-y-auto">
+                                            {filteredGenres.length === 0 && (
+                                                <div className="px-4 py-3 text-gray-400">
+                                                    Nenhum gênero encontrado
+                                                </div>
+                                            )}
+                                            {filteredGenres.map((genre, index) => (
+                                                <div
+                                                    key={index}
+                                                    onClick={() => {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            genre
+                                                        }));
+                                                        setGenreOpen(false);
+                                                        setGenreSearch("");
+                                                    }}
+                                                    className="px-4 py-3 hover:bg-[#137FA8] cursor-pointer transition-colors"
+                                                >
+                                                    {genre}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </motion.div>
                     <AnimatePresence>
