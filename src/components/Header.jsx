@@ -10,44 +10,13 @@ export default function Header() {
     const [loading, setLoading] = useState(true);
 
     const navigate = useNavigate();
-useEffect(() => {
-    let mounted = true;
+    useEffect(() => {
+        let mounted = true;
 
-    async function loadInitialSession() {
-        const { data: { session } } = await supabase.auth.getSession();
+        async function loadInitialSession() {
+            const { data: { session } } = await supabase.auth.getSession();
 
-        if (!mounted) return;
-
-        const user = session?.user ?? null;
-        setUser(user);
-
-        if (user) {
-            await loadProfilePhoto(user.id);
-        } else {
-            setFotoPerfil(null);
-        }
-        setLoading(false);
-
-    }
-
-    async function loadProfilePhoto(userId) {
-        const { data, error } = await supabase
-            .from("perfil")
-            .select("foto")
-            .eq("id", userId)
-            .single();
-
-        if (!error && data?.foto) {
-            setFotoPerfil(data.foto);
-        } else {
-            setFotoPerfil(null);
-        }
-    }
-
-    loadInitialSession();
-
-    const { data: { subscription } } =
-        supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (!mounted) return;
 
             const user = session?.user ?? null;
             setUser(user);
@@ -57,14 +26,45 @@ useEffect(() => {
             } else {
                 setFotoPerfil(null);
             }
-        });
+            setLoading(false);
 
-    return () => {
-        mounted = false;
-        subscription.unsubscribe();
-    };
+        }
 
-}, []);
+        async function loadProfilePhoto(userId) {
+            const { data, error } = await supabase
+                .from("perfil")
+                .select("foto")
+                .eq("id", userId)
+                .single();
+
+            if (!error && data?.foto) {
+                setFotoPerfil(data.foto);
+            } else {
+                setFotoPerfil(null);
+            }
+        }
+
+        loadInitialSession();
+
+        const { data: { subscription } } =
+            supabase.auth.onAuthStateChange(async (_event, session) => {
+
+                const user = session?.user ?? null;
+                setUser(user);
+
+                if (user) {
+                    await loadProfilePhoto(user.id);
+                } else {
+                    setFotoPerfil(null);
+                }
+            });
+
+        return () => {
+            mounted = false;
+            subscription.unsubscribe();
+        };
+
+    }, []);
 
 
     useEffect(() => {
@@ -177,7 +177,7 @@ useEffect(() => {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setMenuAberto(false)}
-                            className="fixed inset-0 top-16 bg-black/50 z-40"
+                            className="fixed inset-0 top-16 bg-black/40 backdrop-blur-xs z-40"
                         />
                         <motion.aside
                             initial={{ x: "-100%" }}

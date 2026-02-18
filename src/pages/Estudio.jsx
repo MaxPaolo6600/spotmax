@@ -139,32 +139,24 @@ export default function Estudio() {
         const { error } = await supabase.storage
             .from("albums")
             .upload(fileName, file);
-
         if (error) throw error;
-
         const { data } = supabase.storage
             .from("albums")
             .getPublicUrl(fileName);
-
         return data.publicUrl;
     }
+
     function showToast(message, type = "success") {
         setToast({ show: true, message, type });
-
         setTimeout(() => {
             setToast(prev => ({ ...prev, show: false }));
         }, 3500);
     }
     async function handleSubmit() {
-
         setIsLoading(true);
-
         let criacaoId = null;
         let albumId = null;
-
         try {
-
-            // 1. pegar usuário logado
             const {
                 data: { user },
                 error: userError
@@ -173,8 +165,6 @@ export default function Estudio() {
             if (userError || !user)
                 throw new Error("Usuário não autenticado");
 
-
-            // 2. pegar nome do artista
             const { data: perfil, error: profileError } =
                 await supabase
                     .from("perfil")
@@ -185,15 +175,11 @@ export default function Estudio() {
             if (profileError)
                 throw profileError;
 
-
-            // 3. upload imagem
             let imageUrl = null;
 
             if (formData.image)
                 imageUrl = await uploadImage(formData.image);
 
-
-            // 4. criar criacao
             const { data: criacaoData, error: criacaoError } =
                 await supabase
                     .from("criacao")
@@ -213,18 +199,11 @@ export default function Estudio() {
 
             criacaoId = criacaoData.id;
 
-
-            // =====================================================
-            // 5. SE FOR ALBUM OU EP
-            // =====================================================
-
             if (selectedType === "Álbum" || selectedType === "Ep") {
 
                 if (!formData.name.trim())
                     throw new Error("Informe o nome do álbum");
 
-
-                // criar album
                 const { data: albumData, error: albumError } =
                     await supabase
                         .from("albums")
@@ -240,8 +219,6 @@ export default function Estudio() {
 
                 albumId = albumData.id;
 
-
-                // atualizar criacao com album_id
                 const { error: updateError } =
                     await supabase
                         .from("criacao")
@@ -253,59 +230,39 @@ export default function Estudio() {
                 if (updateError)
                     throw updateError;
 
-
-                // validar músicas
                 const validTracks =
                     tracks.filter(t => t.name?.trim() && t.file);
 
                 if (validTracks.length === 0)
                     throw new Error("Adicione pelo menos uma música");
 
-
-                // upload músicas
                 const musicInserts = [];
 
                 for (const track of validTracks) {
-
                     const audioUrl =
                         await uploadMusic(track.file, user.id);
-
                     musicInserts.push({
                         criacao_id: criacaoId,
                         nome_musica: track.name.trim(),
                         audio_url: audioUrl
                     });
-
                 }
-
                 const { error: musicError } =
                     await supabase
                         .from("musicas")
                         .insert(musicInserts);
-
                 if (musicError)
                     throw musicError;
-
             }
-
-
-            // =====================================================
-            // 6. SINGLE OU PODCAST
-            // =====================================================
-
             if (
                 selectedType === "Música Single" ||
                 selectedType === "Podcast"
             ) {
-
                 const track = tracks[0];
-
                 if (!track?.file)
                     throw new Error("Envie um arquivo de áudio");
-
                 const audioUrl =
                     await uploadMusic(track.file, user.id);
-
                 const { error } =
                     await supabase
                         .from("musicas")
@@ -315,21 +272,10 @@ export default function Estudio() {
                                 track.name || formData.name,
                             audio_url: audioUrl
                         }]);
-
                 if (error)
                     throw error;
-
             }
-
-
-            // =====================================================
-            // 7. sucesso
-            // =====================================================
-
             showToast("Lançamento criado com sucesso");
-
-
-            // reset form
             setFormData({
                 name: "",
                 genre: "",
@@ -337,21 +283,13 @@ export default function Estudio() {
                 image: null,
                 imagePreview: null
             });
-
             setTracks([
                 { name: "", file: null }
             ]);
-
-
         }
         catch (error) {
 
             console.error(error);
-
-
-            // =====================================================
-            // rollback
-            // =====================================================
 
             if (criacaoId) {
 
@@ -369,18 +307,12 @@ export default function Estudio() {
                     .from("criacao")
                     .delete()
                     .eq("id", criacaoId);
-
             }
-
             showToast(error.message, "error");
-
         }
         finally {
-
             setIsLoading(false);
-
         }
-
     }
 
     return (
