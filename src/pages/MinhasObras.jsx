@@ -52,11 +52,13 @@ export default function MinhasObras() {
         fetchObras();
     }, []);
 
-    function playMusic(musica, cover) {
+    function playMusic(musica, obra) {
         setCurrentTrack({
-            title: musica.nome_musica,
-            audioUrl: musica.audio_url,
-            cover
+            nome_musica: musica.nome_musica,
+            audio_url: musica.audio_url,
+            cover: obra.image_url,
+            nome_artista: obra.nome_artista,
+            nome_album: obra.albums?.[0]?.nome_album || null
         });
     }
 
@@ -270,10 +272,7 @@ export default function MinhasObras() {
                                 onClick={() => {
                                     if (obra.musicas?.length > 0
                                     ) {
-                                        playMusic(
-                                            obra.musicas[0],
-                                            obra.image_url
-                                        );
+                                        playMusic(obra.musicas[0], obra);
                                     }
                                 }}
                                 className="relative cursor-pointer bg-[#212121] rounded-xl p-4 hover:bg-[#212121]/50 transition"
@@ -315,10 +314,7 @@ export default function MinhasObras() {
                                                 key={musica.id}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    playMusic(
-                                                        musica,
-                                                        obra.image_url
-                                                    );
+                                                    playMusic(musica, obra);
                                                 }}
                                                 className="cursor-pointer hover:text-white"
                                             >

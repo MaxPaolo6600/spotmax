@@ -7,65 +7,61 @@ export default function Header() {
     const [menuAberto, setMenuAberto] = useState(false);
     const [user, setUser] = useState(null);
     const [fotoPerfil, setFotoPerfil] = useState(null);
-    const [loading, setLoading] = useState(true);
 
     const navigate = useNavigate();
     useEffect(() => {
-        let mounted = true;
+        const getUser = async () => {
+            const { data, error } = await supabase.auth.getUser();
 
-        async function loadInitialSession() {
-            const { data: { session } } = await supabase.auth.getSession();
+            if (error) {
+                console.error("Erro ao buscar usuário:", error.message);
+                setUser(null);
+                return;
+            }
 
-            if (!mounted) return;
+            const currentUser = data?.user ?? null;
+            setUser(currentUser);
 
-            const user = session?.user ?? null;
-            setUser(user);
-
-            if (user) {
-                await loadProfilePhoto(user.id);
+            if (currentUser) {
+                loadProfilePhoto(currentUser.id);
             } else {
                 setFotoPerfil(null);
             }
-            setLoading(false);
+        };
 
-        }
+        getUser();
 
-        async function loadProfilePhoto(userId) {
-            const { data, error } = await supabase
-                .from("perfil")
-                .select("foto")
-                .eq("id", userId)
-                .single();
+        const { data: listener } = supabase.auth.onAuthStateChange(
+            async (_event, session) => {
+                const currentUser = session?.user ?? null;
+                setUser(currentUser);
 
-            if (!error && data?.foto) {
-                setFotoPerfil(data.foto);
-            } else {
-                setFotoPerfil(null);
-            }
-        }
-
-        loadInitialSession();
-
-        const { data: { subscription } } =
-            supabase.auth.onAuthStateChange(async (_event, session) => {
-
-                const user = session?.user ?? null;
-                setUser(user);
-
-                if (user) {
-                    await loadProfilePhoto(user.id);
+                if (currentUser) {
+                    loadProfilePhoto(currentUser.id);
                 } else {
                     setFotoPerfil(null);
                 }
-            });
+            }
+        );
 
         return () => {
-            mounted = false;
-            subscription.unsubscribe();
+            listener.subscription.unsubscribe();
         };
-
     }, []);
 
+    async function loadProfilePhoto(userId) {
+        const { data, error } = await supabase
+            .from("perfil")
+            .select("foto")
+            .eq("id", userId)
+            .single();
+
+        if (!error && data?.foto) {
+            setFotoPerfil(data.foto);
+        } else {
+            setFotoPerfil(null);
+        }
+    }
 
     useEffect(() => {
         if (menuAberto) {
@@ -83,7 +79,6 @@ export default function Header() {
         await supabase.auth.signOut();
         navigate("/Login");
     }
-    if (loading) return null;
 
     return (
         <>
