@@ -41,7 +41,7 @@ export default function MusicPlayer({ track, onClose }) {
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.15 }}
-                                className="font-semibold text-white"
+                                className="font-bold text-white"
                             >
                                 {track.nome_musica}
                             </motion.p>
@@ -49,17 +49,17 @@ export default function MusicPlayer({ track, onClose }) {
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.15 }}
-                                className="font-semibold text-white"
+                                className="text-white"
                             >
-                                {track.nome_artista}
+                                {track.nome_album}
                             </motion.p>
                             <motion.p
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.15 }}
-                                className="font-semibold text-white"
+                                className="font-semibold text-white text-sm"
                             >
-                                {track.nome_album}
+                                {track.nome_artista}
                             </motion.p>
                         </div>
                         <div className="flex-1">
