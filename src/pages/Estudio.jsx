@@ -7,7 +7,6 @@ import { supabase } from "../supabaseClient";
 
 export default function Estudio() {
     const [selectedType, setSelectedType] = useState("Álbum");
-
     const [formData, setFormData] = useState({
         name: "",
         genre: "",
@@ -15,17 +14,14 @@ export default function Estudio() {
         image: null,
         imagePreview: null,
     });
-
     const [tracks, setTracks] = useState([
         { name: "", file: null }
     ]);
-
     const [toast, setToast] = useState({
         show: false,
         message: "",
         type: "success",
     });
-
     const [isLoading, setIsLoading] = useState(false);
 
     const genres = [
@@ -55,14 +51,12 @@ export default function Estudio() {
     const filteredGenres = genres.filter(g =>
         g.toLowerCase().includes(genreSearch.toLowerCase())
     );
-
     const releaseConfig = {
         Álbum: { label: "álbum", namePlaceholder: "Nome do álbum" },
         Ep: { label: "EP", namePlaceholder: "Nome do EP" },
         "Música Single": { label: "single", namePlaceholder: "Nome da música" },
         Podcast: { label: "podcast", namePlaceholder: "Nome do podcast" },
     };
-
     const containerVariants = {
         hidden: { opacity: 0, y: 30 },
         visible: {
@@ -71,7 +65,6 @@ export default function Estudio() {
             transition: { staggerChildren: 0.15, duration: 0.5 },
         },
     };
-
     const itemVariants = {
         hidden: { opacity: 0, y: 20 },
         visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
@@ -124,18 +117,15 @@ export default function Estudio() {
             .upload(fileName, file);
 
         if (error) throw error;
-
         const { data } = supabase.storage
             .from("musicas")
             .getPublicUrl(fileName);
-
         return data.publicUrl;
     }
 
     async function uploadImage(file) {
         const fileExt = file.name.split(".").pop();
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
-
         const { error } = await supabase.storage
             .from("albums")
             .upload(fileName, file);
@@ -164,7 +154,6 @@ export default function Estudio() {
 
             if (userError || !user)
                 throw new Error("Usuário não autenticado");
-
             const { data: perfil, error: profileError } =
                 await supabase
                     .from("perfil")
@@ -174,7 +163,6 @@ export default function Estudio() {
 
             if (profileError)
                 throw profileError;
-
             let imageUrl = null;
 
             if (formData.image)
@@ -196,14 +184,11 @@ export default function Estudio() {
 
             if (criacaoError)
                 throw criacaoError;
-
             criacaoId = criacaoData.id;
 
             if (selectedType === "Álbum" || selectedType === "Ep") {
-
                 if (!formData.name.trim())
                     throw new Error("Informe o nome do álbum");
-
                 const { data: albumData, error: albumError } =
                     await supabase
                         .from("albums")
@@ -216,9 +201,7 @@ export default function Estudio() {
 
                 if (albumError)
                     throw albumError;
-
                 albumId = albumData.id;
-
                 const { error: updateError } =
                     await supabase
                         .from("criacao")
@@ -229,13 +212,11 @@ export default function Estudio() {
 
                 if (updateError)
                     throw updateError;
-
                 const validTracks =
                     tracks.filter(t => t.name?.trim() && t.file);
 
                 if (validTracks.length === 0)
                     throw new Error("Adicione pelo menos uma música");
-
                 const musicInserts = [];
 
                 for (const track of validTracks) {
@@ -292,17 +273,14 @@ export default function Estudio() {
             console.error(error);
 
             if (criacaoId) {
-
                 await supabase
                     .from("musicas")
                     .delete()
                     .eq("criacao_id", criacaoId);
-
                 await supabase
                     .from("albums")
                     .delete()
                     .eq("criacao_id", criacaoId);
-
                 await supabase
                     .from("criacao")
                     .delete()

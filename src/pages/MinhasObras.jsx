@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import AngleDown from "../assets/angle-small-down.png";
 
 export default function MinhasObras() {
-
     const { bgColor, textColor } = useTheme();
     const [obras, setObras] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -21,6 +20,11 @@ export default function MinhasObras() {
     const [tracks, setTracks] = useState([]);
     const [genreOpen, setGenreOpen] = useState(false);
     const [genreSearch, setGenreSearch] = useState("");
+    const [toast, setToast] = useState({
+        show: false,
+        message: "",
+        type: "success",
+    });
 
     const releaseConfig = {
         album: {
@@ -63,12 +67,10 @@ export default function MinhasObras() {
     }
 
     async function fetchObras() {
-
         try {
             const {
                 data: { user }
             } = await supabase.auth.getUser();
-
             if (!user) return;
             const { data, error } = await supabase
                 .from("criacao")
@@ -91,7 +93,6 @@ export default function MinhasObras() {
                 `)
                 .eq("user_id", user.id)
                 .order("created_at", { ascending: false });
-
             if (error) throw error;
             setObras(data);
         } catch (err) {
@@ -115,12 +116,18 @@ export default function MinhasObras() {
             obra.musicas?.map(m => ({
                 id: m.id,
                 name: m.nome_musica,
-                file: null
+                file: null,
+                audio_url: m.audio_url
             })) || []
         );
         setEditOpen(true);
     }
-
+    function showToast(message, type = "success") {
+        setToast({ show: true, message, type });
+        setTimeout(() => {
+            setToast(prev => ({ ...prev, show: false }));
+        }, 3500);
+    }
     function handleTrackNameChange(index, value) {
         const updated = [...tracks];
         updated[index].name = value;
@@ -128,26 +135,48 @@ export default function MinhasObras() {
     }
 
     function handleTrackFileChange(index, file) {
-
         const updated = [...tracks];
         updated[index].file = file;
         setTracks(updated);
     }
 
     function addTrack() {
-        setTracks([...tracks, {
-            id: null,
-            name: "",
-            file: null
-        }]);
+
+        setTracks(prev => [
+            ...prev,
+            {
+                id: null,
+                name: "",
+                file: null,
+                audio_url: null
+            }
+        ]);
     }
 
-    function removeTrack(index) {
-        const updated = tracks.filter((_, i) => i !== index);
-        setTracks(updated);
+    async function removeTrack(index) {
+        const track = tracks[index];
+        if (track.id) {
+            if (track.audio_url) {
+                const path = track.audio_url.split("/musicas/")[1];
+                await supabase
+                    .storage
+                    .from("musicas")
+                    .remove([path]);
+            }
+            await supabase
+                .from("musicas")
+                .delete()
+                .eq("id", track.id);
+        }
+        showToast("Laixa deletada.");
+        setTracks(prev => prev.filter((_, i) => i !== index));
     }
 
     async function updateObra() {
+        const {
+            data: { user }
+        } = await supabase.auth.getUser();
+        if (!user) return;
 
         try {
             if (!editingObra) return;
@@ -167,20 +196,51 @@ export default function MinhasObras() {
             }
 
             for (const track of tracks) {
+                let audioUrl = track.audio_url;
+
+                if (track.file) {
+                    if (track.audio_url) {
+                        const oldPath = track.audio_url.split("/musicas/")[1];
+                        await supabase.storage
+                            .from("musicas")
+                            .remove([oldPath]);
+                    }
+                    const fileName = `${user.id}/${crypto.randomUUID()}.mp3`;
+                    const { error: uploadError } = await supabase.storage
+                        .from("musicas")
+                        .upload(fileName, track.file);
+                    if (uploadError) throw uploadError;
+                    const { data } = supabase
+                        .storage
+                        .from("musicas")
+                        .getPublicUrl(fileName);
+                    audioUrl = data.publicUrl;
+                }
+
                 if (track.id) {
                     await supabase
                         .from("musicas")
                         .update({
-                            nome_musica: track.name
+                            nome_musica: track.name,
+                            audio_url: audioUrl
                         })
                         .eq("id", track.id);
+                } else {
+                    await supabase
+                        .from("musicas")
+                        .insert({
+                            criacao_id: editingObra.id,
+                            nome_musica: track.name,
+                            audio_url: audioUrl
+                        });
                 }
             }
+
             setEditOpen(false);
             fetchObras();
         } catch (err) {
             console.error(err);
-            alert("Erro ao atualizar");
+            showToast(error.message, err, "Erro ao atualizar");
         }
     }
 
@@ -337,7 +397,7 @@ export default function MinhasObras() {
             <AnimatePresence>
                 {editOpen && editingObra && (
                     <motion.div
-                        className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 px-4"
+                        className="fixed inset-0 bg-[#212121]/50 backdrop-blur-xs flex items-center justify-center z-50 px-4"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -345,7 +405,7 @@ export default function MinhasObras() {
                     >
                         <motion.div
                             onClick={(e) => e.stopPropagation()}
-                            className="bg-[#181818] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-[#212121]"
+                            className="bg-[#262B2D] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-[#212121]"
                             initial={{ opacity: 0, scale: 0.9, y: 40 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: 40 }}
@@ -357,14 +417,14 @@ export default function MinhasObras() {
                                 </h2>
                                 <button
                                     onClick={() => setEditOpen(false)}
-                                    className="text-gray-400 hover:text-white transition"
+                                    className="text-[#137FA8] hover:text-white transition"
                                 >
                                     ✕
                                 </button>
                             </div>
                             <div className="p-6 max-h-[70vh] overflow-y-auto space-y-5">
                                 <div>
-                                    <label className="text-sm text-gray-400 block mb-2">
+                                    <label className="text-sm text-[#137FA8] block mb-2">
                                         {releaseConfig[editingObra.tipo]?.namePlaceholder}
                                     </label>
                                     <input
@@ -376,7 +436,7 @@ export default function MinhasObras() {
                                     />
                                 </div>
                                 <div className="relative">
-                                    <label className="text-sm text-gray-400 block mb-2">
+                                    <label className="text-sm text-[#137FA8] block mb-2">
                                         Gênero
                                     </label>
                                     <div
@@ -395,7 +455,7 @@ export default function MinhasObras() {
                                                 initial={{ opacity: 0, y: -10 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 exit={{ opacity: 0, y: -10 }}
-                                                className="absolute w-full bg-[#1E1E1E] mt-2 rounded-lg shadow-xl border border-[#212121] z-10 max-h-48 overflow-y-auto"
+                                                className="absolute w-full bg-[#212121] mt-2 rounded-lg shadow-xl border border-[#212121] z-10 max-h-48 overflow-y-auto"
                                             >
                                                 {filteredGenres.map((g, i) => (
                                                     <div
@@ -415,7 +475,7 @@ export default function MinhasObras() {
                                 </div>
                                 {tracks.length > 0 && (
                                     <div>
-                                        <label className="text-sm text-gray-400 block mb-3">
+                                        <label className="text-sm text-[#137FA8] block mb-3">
                                             Faixas
                                         </label>
                                         <div className="space-y-3">
@@ -426,7 +486,7 @@ export default function MinhasObras() {
                                                     animate={{ opacity: 1, x: 0 }}
                                                     className="flex items-center gap-3"
                                                 >
-                                                    <span className="text-gray-500 text-sm w-6">
+                                                    <span className="text-[#137FA8] text-sm w-6">
                                                         {index + 1}
                                                     </span>
                                                     <input
@@ -435,7 +495,24 @@ export default function MinhasObras() {
                                                             handleTrackNameChange(index, e.target.value)
                                                         }
                                                         className="flex-1 bg-[#212121] p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#137FA8] transition"
+                                                        placeholder="Nome da música"
                                                     />
+                                                    <input
+                                                        type="file"
+                                                        accept="audio/mp3,audio/mpeg"
+                                                        onChange={e => handleTrackFileChange(index, e.target.files[0])}
+                                                        className="flex-1 bg-[#212121] text-[#5c5c5c] p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#137FA8] transition"
+                                                    />
+                                                    {track.audio_url && !track.file && (
+                                                        <span className="text-xs text-gray-500 mt-1">
+                                                            {track.audio_url.split("/musicas/")[1]}
+                                                        </span>
+                                                    )}
+                                                    {track.file && (
+                                                        <span className="text-xs text-green-400 mt-1">
+                                                            Novo arquivo: {track.file.name}
+                                                        </span>
+                                                    )}
                                                     <button
                                                         onClick={() => removeTrack(index)}
                                                         className="text-red-500 hover:text-red-400 text-sm"
@@ -447,7 +524,7 @@ export default function MinhasObras() {
                                         </div>
                                         <button
                                             onClick={addTrack}
-                                            className="mt-4 text-[#137FA8] hover:underline text-sm"
+                                            className="mt-4 text-[#274E5D] font-bold hover:underline text-sm"
                                         >
                                             + Adicionar faixa
                                         </button>
@@ -469,6 +546,31 @@ export default function MinhasObras() {
                                 </button>
                             </div>
                         </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+            <AnimatePresence>
+                {toast.show && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 40 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 40 }}
+                        transition={{ duration: 0.3 }}
+                        className={`fixed bottom-6 right-6 z-50 max-w-sm px-6 py-4 rounded-xl shadow-2xl text-white
+                ${toast.type === "success"
+                                ? "bg-[#137FA8]"
+                                : "bg-[#5C0F0F]"
+                            }`}
+                    >
+                        <div className="flex items-start justify-between gap-4">
+                            <span className="font-semibold">{toast.message}</span>
+                            <button
+                                onClick={() => setToast(prev => ({ ...prev, show: false }))}
+                                className="text-white/80 hover:text-white text-xl leading-none"
+                            >
+                                ×
+                            </button>
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>

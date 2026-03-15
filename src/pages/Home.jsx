@@ -146,7 +146,7 @@ export default function App() {
                                             )}
                                         </div>
                                         <div className="p-3">
-                                            <h2 className="text-2xl font-semibold truncate">
+                                            <h2 className="text-1xl font-semibold truncate">
                                                 {musica.nome_musica}
                                             </h2>
                                             <p className="text-xs opacity-70 truncate">

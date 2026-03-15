@@ -7,8 +7,8 @@ export default function Header() {
     const [menuAberto, setMenuAberto] = useState(false);
     const [user, setUser] = useState(null);
     const [fotoPerfil, setFotoPerfil] = useState(null);
-
     const navigate = useNavigate();
+
     useEffect(() => {
         const getUser = async () => {
             const { data, error } = await supabase.auth.getUser();
@@ -18,7 +18,6 @@ export default function Header() {
                 setUser(null);
                 return;
             }
-
             const currentUser = data?.user ?? null;
             setUser(currentUser);
 
