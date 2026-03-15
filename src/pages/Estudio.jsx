@@ -463,7 +463,7 @@ export default function Estudio() {
                                 <button
                                     type="button"
                                     onClick={addTrack}
-                                    className="mt-4 px-5 py-2 bg-[#137FA8] rounded-xl hover:bg-[#274E5D]"
+                                    className="mt-4 px-5 py-2 rounded-xl hover:bg-[#274E5D] bg-gradient-to-r from-[#137FA8] to-[#274E5D]"
                                 >
                                     + Adicionar música
                                 </button>

@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../supabaseClient";
 import { useTheme } from "../context/ThemeContext";
 
+import person from "../assets/do-utilizador (1).png"
+
 export default function Perfil() {
     const { bgColor, textColor } = useTheme();
 
@@ -156,10 +158,16 @@ export default function Perfil() {
                         animate={{ opacity: 1, y: 0 }}
                         onClick={salvarFoto}
                         disabled={loading}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                        className="px-4 py-2 bg-gradient-to-r from-[#137FA8] to-[#274E5D] text-white rounded"
                     >
                         {loading ? "Salvando..." : "Salvar foto"}
                     </motion.button>
+                </div>
+                <div className="mt-10">
+                    <h3>Seus artistas mais ouvidos</h3>
+                    <div className="mt-4 p-3 w-100 bg-[#212121] rounded-full hover:bg-[#2a2a2a] transition">
+                        <img src={person} alt="Perfil" className="h-15 w-15 p-0.75 rounded-full border-2 border-[#274E5D]" />
+                    </div>
                 </div>
             </main>
             <AnimatePresence>
