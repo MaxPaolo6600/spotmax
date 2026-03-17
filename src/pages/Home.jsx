@@ -174,6 +174,158 @@ export default function App() {
                         <img src={direita} alt="Direita" className="h-6 w-6" />
                     </motion.button>
                 </div>
+                <h1 className="text-center mt-10 text-4xl">
+                    Playlists
+                </h1>
+                <div className="relative mt-12">
+                    <motion.button
+                        whileHover={{ scale: 1.15 }}
+                        whileTap={{ scale: 0.95 }}
+                        transition={{ type: "spring", stiffness: 300 }}
+                        onClick={() => {
+                            const carousel = document.getElementById("carousel");
+                            carousel.scrollLeft -= carousel.offsetWidth / 5;
+                        }}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 z-20 backdrop-blur-md p-3 rounded-full shadow-[0_8px_25px_rgba(0,0,0,0.6)]"
+                    >
+                        <img src={esquerda} alt="Esquerda" className="h-6 w-6" />
+                    </motion.button>
+                    <div
+                        id="carousel"
+                        className="flex flex-nowrap gap-6 overflow-x-auto scroll-smooth px-12 scrollbar-hide snap-x snap-mandatory"
+                    >
+                        <AnimatePresence>
+                            {musicas.map((musica, index) => {
+                                const album = musica.criacao?.albums?.[0];
+                                return (
+                                    <motion.div
+                                        key={musica.id}
+                                        onClick={() => playMusic(musica)}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -40 }}
+                                        transition={{
+                                            delay: index * 0.05,
+                                            duration: 0.4,
+                                            ease: "easeOut"
+                                        }}
+                                        className="cursor-pointer snap-start flex-shrink-0 w-[calc((100%-6rem)/5)] bg-[#212121] rounded-2xl overflow-hidden flex flex-col justify-between"
+                                    >
+                                        <div className="bg-[#1a1a1a] p-3 h-full flex">
+                                            {musica.criacao?.image_url && (
+                                                <motion.img
+                                                    src={musica.criacao.image_url}
+                                                    alt={album?.nome_album}
+                                                    className="w-100 object-cover rounded-2xl"
+                                                    whileHover={{ scale: 1.05 }}
+                                                    transition={{ duration: 0.3 }}
+                                                />
+                                            )}
+                                        </div>
+                                        <div className="p-3">
+                                            <h2 className="text-1xl font-semibold truncate">
+                                                {musica.nome_musica}
+                                            </h2>
+                                            <p className="text-xs opacity-70 truncate">
+                                                {album?.nome_album || ""}
+                                            </p>
+                                            <p className="text-sm opacity-50 mb-2">
+                                                {musica.criacao?.nome_artista}
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </AnimatePresence>
+                    </div>
+                    <motion.button
+                        whileHover={{ scale: 1.15 }}
+                        whileTap={{ scale: 0.95 }}
+                        transition={{ type: "spring", stiffness: 300 }}
+                        onClick={() => {
+                            const carousel = document.getElementById("carousel");
+                            carousel.scrollLeft += carousel.offsetWidth / 5;
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 backdrop-blur-md p-3 rounded-full shadow-[0_8px_25px_rgba(0,0,0,0.6)]"
+                    >
+                        <img src={direita} alt="Direita" className="h-6 w-6" />
+                    </motion.button>
+                </div>
+                <h1 className="text-center mt-10 text-4xl">
+                    Álbums
+                </h1>
+                <div className="relative mt-12">
+                    <motion.button
+                        whileHover={{ scale: 1.15 }}
+                        whileTap={{ scale: 0.95 }}
+                        transition={{ type: "spring", stiffness: 300 }}
+                        onClick={() => {
+                            const carousel = document.getElementById("carousel");
+                            carousel.scrollLeft -= carousel.offsetWidth / 5;
+                        }}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 z-20 backdrop-blur-md p-3 rounded-full shadow-[0_8px_25px_rgba(0,0,0,0.6)]"
+                    >
+                        <img src={esquerda} alt="Esquerda" className="h-6 w-6" />
+                    </motion.button>
+                    <div
+                        id="carousel"
+                        className="flex flex-nowrap gap-6 overflow-x-auto scroll-smooth px-12 scrollbar-hide snap-x snap-mandatory"
+                    >
+                        <AnimatePresence>
+                            {musicas.map((musica, index) => {
+                                const album = musica.criacao?.albums?.[0];
+                                return (
+                                    <motion.div
+                                        key={musica.id}
+                                        onClick={() => playMusic(musica)}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -40 }}
+                                        transition={{
+                                            delay: index * 0.05,
+                                            duration: 0.4,
+                                            ease: "easeOut"
+                                        }}
+                                        className="cursor-pointer snap-start flex-shrink-0 w-[calc((100%-6rem)/5)] bg-[#212121] rounded-2xl overflow-hidden flex flex-col justify-between"
+                                    >
+                                        <div className="bg-[#1a1a1a] p-3 h-full flex">
+                                            {musica.criacao?.image_url && (
+                                                <motion.img
+                                                    src={musica.criacao.image_url}
+                                                    alt={album?.nome_album}
+                                                    className="w-100 object-cover rounded-2xl"
+                                                    whileHover={{ scale: 1.05 }}
+                                                    transition={{ duration: 0.3 }}
+                                                />
+                                            )}
+                                        </div>
+                                        <div className="p-3">
+                                            <h2 className="text-1xl font-semibold truncate">
+                                                {musica.nome_musica}
+                                            </h2>
+                                            <p className="text-xs opacity-70 truncate">
+                                                {album?.nome_album || ""}
+                                            </p>
+                                            <p className="text-sm opacity-50 mb-2">
+                                                {musica.criacao?.nome_artista}
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </AnimatePresence>
+                    </div>
+                    <motion.button
+                        whileHover={{ scale: 1.15 }}
+                        whileTap={{ scale: 0.95 }}
+                        transition={{ type: "spring", stiffness: 300 }}
+                        onClick={() => {
+                            const carousel = document.getElementById("carousel");
+                            carousel.scrollLeft += carousel.offsetWidth / 5;
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 backdrop-blur-md p-3 rounded-full shadow-[0_8px_25px_rgba(0,0,0,0.6)]"
+                    >
+                        <img src={direita} alt="Direita" className="h-6 w-6" />
+                    </motion.button>
+                </div>
             </main>
             <MusicPlayer
                 track={currentTrack}
