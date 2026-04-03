@@ -12,6 +12,7 @@ import esquerda from "../assets/angulo-esquerdo.png";
 export default function App() {
     const [loading, setLoading] = useState(true);
     const [musicas, setMusicas] = useState([]);
+    const [albuns, setAlbuns] = useState([]);
     const [currentTrack, setCurrentTrack] = useState(null);
     const { bgColor, textColor } = useTheme();
 
@@ -21,44 +22,51 @@ export default function App() {
 
     async function carregarPagina() {
         try {
-            const { data, error } = await supabase
+            const { data: musicasData, error: musicasError } = await supabase
                 .from("musicas")
                 .select(`
+                id,
+                nome_musica,
+                audio_url,
+                criacao (
                     id,
-                    nome_musica,
-                    audio_url,
-                    criacao (
+                    tipo,
+                    genre,
+                    release_date,
+                    image_url,
+                    nome_artista,
+                    albums (
                         id,
-                        tipo,
-                        genre,
-                        release_date,
-                        image_url,
-                        nome_artista,
-                        albums (
-                            id,
-                            nome_album
-                        )
+                        nome_album
                     )
-                `);
+                )
+            `);
 
-            if (error) throw error;
-            setMusicas(data);
+            if (musicasError) throw musicasError;
+
+            const { data: albunsData, error: albunsError } = await supabase
+                .from("albums")
+                .select("*");
+            if (albunsError) throw albunsError;
+
+            setMusicas(musicasData);
+            setAlbuns(albunsData);
         } catch (error) {
-            console.error("Erro ao carregar músicas:", error);
+            console.error("Erro ao carregar dados:", error);
         } finally {
             setLoading(false);
         }
     }
 
     function playMusic(musica) {
-    setCurrentTrack({
-        nome_musica: musica.nome_musica,
-        audio_url: musica.audio_url,
-        cover: musica.criacao?.image_url,
-        nome_artista: musica.criacao?.nome_artista,
-        nome_album: musica.criacao?.albums?.[0]?.nome_album || null
-    });
-}
+        setCurrentTrack({
+            nome_musica: musica.nome_musica,
+            audio_url: musica.audio_url,
+            cover: musica.criacao?.image_url,
+            nome_artista: musica.criacao?.nome_artista,
+            nome_album: musica.criacao?.albums?.[0]?.nome_album || null
+        });
+    }
 
     if (loading) {
         return (
@@ -271,12 +279,10 @@ export default function App() {
                         className="flex flex-nowrap gap-6 overflow-x-auto scroll-smooth px-12 scrollbar-hide snap-x snap-mandatory"
                     >
                         <AnimatePresence>
-                            {musicas.map((musica, index) => {
-                                const album = musica.criacao?.albums?.[0];
+                            {albuns.map((albun, index) => {
                                 return (
                                     <motion.div
-                                        key={musica.id}
-                                        onClick={() => playMusic(musica)}
+                                        key={albun.id}
                                         animate={{ opacity: 1, x: 0 }}
                                         exit={{ opacity: 0, x: -40 }}
                                         transition={{
@@ -287,10 +293,10 @@ export default function App() {
                                         className="cursor-pointer snap-start flex-shrink-0 w-[calc((100%-6rem)/5)] bg-[#212121] rounded-2xl overflow-hidden flex flex-col justify-between"
                                     >
                                         <div className="bg-[#1a1a1a] p-3 h-full flex">
-                                            {musica.criacao?.image_url && (
+                                            {albun.image_url && (
                                                 <motion.img
-                                                    src={musica.criacao.image_url}
-                                                    alt={album?.nome_album}
+                                                    src={albun.image_url}
+                                                    alt={albun.nome_album}
                                                     className="w-100 object-cover rounded-2xl"
                                                     whileHover={{ scale: 1.05 }}
                                                     transition={{ duration: 0.3 }}
@@ -299,13 +305,10 @@ export default function App() {
                                         </div>
                                         <div className="p-3">
                                             <h2 className="text-1xl font-semibold truncate">
-                                                {musica.nome_musica}
+                                                {albun.nome_album}
                                             </h2>
-                                            <p className="text-xs opacity-70 truncate">
-                                                {album?.nome_album || ""}
-                                            </p>
                                             <p className="text-sm opacity-50 mb-2">
-                                                {musica.criacao?.nome_artista}
+                                                {albun.nome_artista}
                                             </p>
                                         </div>
                                     </motion.div>
