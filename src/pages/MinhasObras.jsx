@@ -342,7 +342,7 @@ export default function MinhasObras() {
                                         e.stopPropagation();
                                         openEditModal(obra);
                                     }}
-                                    className="absolute top-3 left-3 px-3 py-1 rounded-lg text-sm font-semibold bg-gradient-to-r from-[#137FA8] to-[#274E5D]"
+                                    className="absolute top-3 left-3 px-3 py-1 rounded-lg text-sm font-semibold bg-[#137FA8] hover:bg-[#274E5D] hover:scale-105"
                                 >
                                     Editar
                                 </button>

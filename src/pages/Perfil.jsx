@@ -121,7 +121,7 @@ export default function Perfil() {
                     >
                         <motion.div className="border-2 p-1 border-[#274E5D] rounded-full">
                             <motion.img
-                                src={preview || "/avatar-placeholder.png"}
+                                src={preview || person}
                                 className="w-32 h-32 rounded-full object-cover"
                                 initial={{ opacity: 0, y: -20 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -158,7 +158,7 @@ export default function Perfil() {
                         animate={{ opacity: 1, y: 0 }}
                         onClick={salvarFoto}
                         disabled={loading}
-                        className="px-4 py-2 bg-gradient-to-r from-[#137FA8] to-[#274E5D] text-white rounded"
+                        className="px-4 py-2 bg-[#137FA8] hover:bg-[#274E5D] hover:scale-105 text-white rounded"
                     >
                         {loading ? "Salvando..." : "Salvar foto"}
                     </motion.button>

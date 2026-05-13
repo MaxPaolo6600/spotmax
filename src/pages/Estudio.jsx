@@ -322,7 +322,7 @@ export default function Estudio() {
                                 }
                             }}
                             className={`px-6 py-3 rounded-xl flex items-center gap-2 font-semibold transition-colors ${selectedType === item
-                                ? "bg-gradient-to-r from-[#137FA8] to-[#274E5D] shadow-lg"
+                                ? "bg-[#137FA8] hover:bg-[#274E5D] shadow-lg"
                                 : "bg-[#274E5D] hover:bg-[#212121]"
                                 }`}
                             variants={itemVariants}
@@ -460,13 +460,12 @@ export default function Estudio() {
                                         </motion.div>
                                     ))}
                                 </div>
-                                <button
-                                    type="button"
+                                <motion.button
                                     onClick={addTrack}
-                                    className="mt-4 px-5 py-2 rounded-xl hover:bg-[#274E5D] bg-gradient-to-r from-[#137FA8] to-[#274E5D]"
+                                    className="mt-4 px-5 py-2 rounded-xl gap-2 transition-colors hover:bg-[#274E5D] bg-[#137FA8] hover:scale-105"
                                 >
                                     + Adicionar música
-                                </button>
+                                </motion.button>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -477,7 +476,7 @@ export default function Estudio() {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -20 }}
-                                transition={{ duration: 0.3 }}
+                                transition={{ duration: 0.5 }}
                             >
                                 <label className="block mb-4 text-xl font-medium">
                                     Arquivo de áudio do{" "}
@@ -487,7 +486,6 @@ export default function Estudio() {
                                 </label>
                                 <motion.div
                                     className="flex flex-col gap-3 p-4 bg-[#1E1E1E] rounded-xl shadow-inner"
-                                    whileHover={{ scale: 1.01 }}
                                 >
                                     <input
                                         type="text"
@@ -545,9 +543,9 @@ export default function Estudio() {
                             onClick={handleSubmit}
                             disabled={isLoading}
                             className={`px-10 py-3 rounded-xl shadow-lg transition-all flex items-center gap-3
-        ${isLoading
+                                ${isLoading
                                     ? "bg-[#274E5D] opacity-70 cursor-not-allowed"
-                                    : "bg-gradient-to-r from-[#137FA8] to-[#274E5D] hover:scale-105"
+                                    : "bg-[#137FA8] hover:bg-[#274E5D] hover:scale-105"
                                 }`}
                         >
                             {isLoading && (

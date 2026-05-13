@@ -46,7 +46,7 @@ export default function App() {
 
             const { data: albunsData, error: albunsError } = await supabase
                 .from("albums")
-                .select("*");
+                .select(`*, criacao(image_url, nome_artista)`);
             if (albunsError) throw albunsError;
 
             setMusicas(musicasData);
@@ -293,9 +293,9 @@ export default function App() {
                                         className="cursor-pointer snap-start flex-shrink-0 w-[calc((100%-6rem)/5)] bg-[#212121] rounded-2xl overflow-hidden flex flex-col justify-between"
                                     >
                                         <div className="bg-[#1a1a1a] p-3 h-full flex">
-                                            {albun.image_url && (
+                                            {albun.criacao.image_url && (
                                                 <motion.img
-                                                    src={albun.image_url}
+                                                    src={albun.criacao.image_url}
                                                     alt={albun.nome_album}
                                                     className="w-100 object-cover rounded-2xl"
                                                     whileHover={{ scale: 1.05 }}
@@ -308,7 +308,7 @@ export default function App() {
                                                 {albun.nome_album}
                                             </h2>
                                             <p className="text-sm opacity-50 mb-2">
-                                                {albun.nome_artista}
+                                                {albun.criacao.nome_artista}
                                             </p>
                                         </div>
                                     </motion.div>
