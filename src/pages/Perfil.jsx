@@ -8,13 +8,11 @@ import person from "../assets/do-utilizador (1).png"
 
 export default function Perfil() {
     const { bgColor, textColor } = useTheme();
-
     const [user, setUser] = useState(null);
     const [foto, setFoto] = useState(null);
     const [preview, setPreview] = useState(null);
     const [loading, setLoading] = useState(false);
     const [nome, setNome] = useState("");
-
     const [toast, setToast] = useState({
         show: false,
         message: "",
@@ -30,14 +28,18 @@ export default function Perfil() {
             if (data.user) {
                 buscarPerfil(data.user.id);
             }
+            buscarPerfis();
         };
         getUser();
     }, []);
 
+    const [perfil, setPerfil] = useState(null);
+    const [perfis, setPerfis] = useState([]);
+
     const buscarPerfil = async (userId) => {
         const { data, error } = await supabase
             .from("perfil")
-            .select("foto, nome")
+            .select("*")
             .eq("id", userId)
             .single();
 
@@ -47,13 +49,24 @@ export default function Perfil() {
         }
 
         if (data) {
-            if (data.foto) {
-                setPreview(data.foto);
-            }
-            if (data.nome) {
-                setNome(data.nome);
-            }
+            setPerfil(data);
+
+            setPreview(data.foto || null);
+            setNome(data.nome || "");
         }
+    };
+    const buscarPerfis = async () => {
+        const { data, error } = await supabase
+            .from("perfil")
+            .select("*");
+
+        if (error) {
+            console.error("Erro ao buscar perfis:", error);
+            return;
+        }
+
+        console.log("Perfis:", data);
+        setPerfis(data);
     };
 
     const handleFotoChange = (e) => {
@@ -168,6 +181,17 @@ export default function Perfil() {
                     <div className="mt-4 p-3 w-100 bg-[#212121] rounded-full hover:bg-[#2a2a2a] transition">
                         <img src={person} alt="Perfil" className="h-15 w-15 p-0.75 rounded-full border-2 border-[#274E5D]" />
                     </div>
+                    {perfis.map((perfil) => (
+                        <div key={perfil.id} className="p-4 rounded-lg bg-[#212121] mb-3">
+                            <img
+                                src={perfil.foto || person}
+                                alt={perfil.nome}
+                                className="w-16 h-16 rounded-full object-cover"
+                            />
+                            <h3>{perfil.nome}</h3>
+                            <p>{perfil.email}</p>
+                        </div>
+                    ))}
                 </div>
             </main>
             <AnimatePresence>
